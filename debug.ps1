@@ -1,0 +1,1 @@
+devenv ./build/bin/Debug/NinetailsX.exe
