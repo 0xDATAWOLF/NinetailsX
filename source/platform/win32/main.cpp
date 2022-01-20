@@ -86,6 +86,50 @@ WindowProcedure(HWND WindowHandle, u32 Message, WPARAM wParam, LPARAM lParam)
 			ApplicationState.isRunnning = false;
 		} break;
 
+		case WM_SETCURSOR:
+		{
+			/**
+			 * This event is triggered when the mouse enters the windows.
+			 * 
+			 * NOTE:
+			 * 			If we use a custom cursor, then we will need to account for that here.
+			 * 			Otherwise, we will default to the pointer.
+			 */
+			SetCursor(LoadCursor(NULL, IDC_ARROW));
+		} break;
+
+		case WM_PAINT:
+		{
+
+			/**
+			 * This event is generated when the system or another application requests that the window
+			 * needs to redraw itself. This is most likely triggered when the window is resized or moved.
+			 * 
+			 * NOTE:
+			 * 			The action of this event uses painting to fill in the gaps, but hardware acceleration
+			 * 			will eventually take over this for us. We will probably want to change the behavior of
+			 * 			this event depending on the graphics API we chose to use (Vulkan, OpenGL, DX12).
+			 * 
+			 * WM_PAINT:
+			 * 			https://docs.microsoft.com/en-us/windows/win32/gdi/wm-paint
+			 * 
+			 * BeginPaint:
+			 * 			https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-beginpaint
+			 * 			
+			 */
+
+			BOOL PaintRequired = GetUpdateRect(WindowHandle, NULL, false);
+			if (!PaintRequired) break; // Break out from the next steps.
+
+			PAINTSTRUCT PaintRegion = {0};
+			HDC PaintDeviceContext = BeginPaint(WindowHandle, &PaintRegion);
+
+			FillRect(PaintDeviceContext, &PaintRegion.rcPaint, GetSysColorBrush(COLOR_WINDOW));
+
+			EndPaint(WindowHandle, &PaintRegion);
+
+		} break;
+
 		default:
 		{
 			return(DefWindowProcA(WindowHandle, Message, wParam, lParam));	
@@ -199,7 +243,6 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	*(modulePath+BasePathCount+strlen(moduleName)) = '\0'; // Null terminate.
 	InitializeNinetailsXEngine(modulePath, &ApplicationState.EngineLibrary);
 
-	ApplicationState.EngineLibrary.EngineRuntime();
 	/**
 	 * Begin the application runtime loop given that we have sucessfully established and loaded all
 	 * the necessary facilities to reach this point.
@@ -227,7 +270,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * We will begin by executing the game's runtime code.
 		 */
 		engine_library& EngineLib = ApplicationState.EngineLibrary;
-		//EngineLib.EngineRuntime(); 
+		EngineLib.EngineRuntime(); 
 
 
 	}
