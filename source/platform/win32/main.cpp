@@ -64,6 +64,12 @@ InitializeNinetailsXEngine(char* dynamicLibraryFilePath, engine_library* EngineL
 	return 1;
 }
 
+internal void
+RenderSoftwareBitmap()
+{
+
+}
+
 LRESULT CALLBACK
 WindowProcedure(HWND WindowHandle, u32 Message, WPARAM wParam, LPARAM lParam)
 {
@@ -125,6 +131,8 @@ WindowProcedure(HWND WindowHandle, u32 Message, WPARAM wParam, LPARAM lParam)
 			HDC PaintDeviceContext = BeginPaint(WindowHandle, &PaintRegion);
 
 			FillRect(PaintDeviceContext, &PaintRegion.rcPaint, GetSysColorBrush(COLOR_WINDOW));
+
+			RenderSoftwareBitmap();
 
 			EndPaint(WindowHandle, &PaintRegion);
 
@@ -272,6 +280,8 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		engine_library& EngineLib = ApplicationState.EngineLibrary;
 		EngineLib.EngineRuntime(); 
 
+
+		RenderSoftwareBitmap();
 
 	}
 
