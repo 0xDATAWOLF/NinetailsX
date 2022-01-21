@@ -11,14 +11,15 @@ typedef struct engine_library
 
 typedef struct app_state
 {
-	b32 isRunnning;
 	engine_library EngineLibrary;
+	memory_layout MemoryLayout;
+	b32 isRunnning;
 } app_state;
 
 app_state ApplicationState = {0};
 
 
-/**
+/** **************************************************************************************************
  * This will load the engine library code and assign it to the struct which carries the
  * pointers to the necessary functions.
  * 
@@ -46,7 +47,7 @@ InitializeNinetailsXEngine(char* dynamicLibraryFilePath, engine_library* EngineL
 	return 0;
 #endif
 
-	/**
+	/** **********************************************************************************************
 	 * When we pull from the engine library, we are expecting that the procedure addresses are always going
 	 * to be valid. They might not be--if they're null, or not what we're we expected them to be *outside*
 	 * of testing--that's a user-error problem. Someone touched the supplied DLL when they shouldn't be touching
@@ -151,7 +152,7 @@ i32 WINAPI
 wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int CommandShow)
 {
 
-	/**
+	/** **********************************************************************************************
 	 * Create & fill out the WNDCLASS struct.
 	 * 
 	 * NOTE:	
@@ -184,18 +185,51 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 
 	RegisterClassA(&WindowClass);
 
+	/** **********************************************************************************************
+	 * The system will determine the size of the window using defaults, however we want to set the
+	 * size of the to a particular size. The CreateWindowExA size sets the window's total size (this
+	 * includes the window frame, menu, etc.), not the actual "client area" which we modify.
+	 * 
+	 * We are setting that here and then creating the window using that information.
+	 * 
+	 * AdjustWindowRect:
+	 * 			We can get the correct window size based on our requested dimensions by calling this function.
+	 * 			https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrect
+	 * 
+	 * 			It's important to note that this is based on the dwStyle parameters; the size is dependent on
+	 * 			this data being correct.
+	 * 			https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles
+	 * 
+	 * 			Since we use "WS_OVERLAPPEDWINDOW" as our style, our window uses a frame (with min/max, close controls)
+	 * 			and therefore we need to provide WS_CAPTION which includes WS_BORDER. This will gives us the appropriate
+	 * 			window style.
+	 */
+
+	RECT WindowFromClientSize = {0, 0, 1280, 720};
+	AdjustWindowRect(&WindowFromClientSize, WS_CAPTION, FALSE);
+	i32 WindowWidth = WindowFromClientSize.right-WindowFromClientSize.left;
+	i32 WindowHeight = WindowFromClientSize.bottom-WindowFromClientSize.top;
+
 	HWND WindowHandle = CreateWindowExA(0, "NinetailsX", "NinetailsX Engine",
-		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL,
+		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, WindowWidth, WindowHeight, NULL,
 		NULL, hInstance, NULL);
 
 #ifdef NINETAILSX_DEBUG
+	// Ensuring that we actually got the window handle.
 	assert(WindowHandle != NULL);
-#endif
-	ShowWindow(WindowHandle, CommandShow);
-	ApplicationState.isRunnning = true;
 
-	/**
-	 * Allocate the heap necessary for application runtime.
+	// Ensuring the window size we requested is the actual window size that we have.
+	RECT ActualClientSize = {0};
+	GetClientRect(WindowHandle, &ActualClientSize);
+	i32 ActualWindowWidth = ActualClientSize.right-ActualClientSize.left;
+	i32 ActualWindowHeight = ActualClientSize.bottom-ActualClientSize.top;
+	assert(ActualWindowWidth == WindowWidth);
+	assert(ActualWindowHeight == WindowHeight);
+#endif
+
+	/** **********************************************************************************************
+	 * Allocate the heap necessary for application runtime. These are set up in the ApplicationStates'
+	 * memory_layout member such that we can feed this to the engine DLL.
 	 * 
 	 * NOTE:
 	 * 			We will need to *dynamically* consider what the user's system is capable of, but for
@@ -210,8 +244,11 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 #else
 	void* HeapMemory = VirtualAlloc((void*)0x00, VIRTUAL_ALLOCATION_SIZE, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
 #endif
+	ApplicationState.MemoryLayout.Base = HeapMemory;
+	ApplicationState.MemoryLayout.Size = VIRTUAL_ALLOCATION_SIZE;
+	memory_layout* GameMemoryLayout = &ApplicationState.MemoryLayout;
 
-	/**
+	/** **********************************************************************************************
 	 * We need to establish the root path of the executable which we use to search for all assets.
 	 * 
 	 * GetModuleFileNameA:
@@ -224,7 +261,8 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	char* moduleName = "NinetailsXEngine.dll";
 	GetModuleFileNameA(NULL, executablePath, MAX_PATH);
 
-	// We are looking for the last slash within the filepath to determine to root directory of the executable.
+	// We are looking for the last slash within the filepath to determine to root directory of the
+	// executable.
 	char* lastSlash = executablePath;
 	for (i32 offset = 0; executablePath[offset]; ++offset)
 	{
@@ -234,8 +272,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		}
 	}
 
-	/**
-	 * 
+	/** **********************************************************************************************
 	 * We should preserve base path in case we need to grab other files later.
 	 * 
 	 * NOTE:
@@ -251,14 +288,16 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	*(modulePath+BasePathCount+strlen(moduleName)) = '\0'; // Null terminate.
 	InitializeNinetailsXEngine(modulePath, &ApplicationState.EngineLibrary);
 
-	/**
+	/** **********************************************************************************************
 	 * Begin the application runtime loop given that we have sucessfully established and loaded all
-	 * the necessary facilities to reach this point.
+	 * the necessary facilities to reach this point. We will show the window at this point.
 	 */
+	ShowWindow(WindowHandle, CommandShow);
+	ApplicationState.isRunnning = true;
 	while (ApplicationState.isRunnning)
 	{
 
-		/**
+		/** ******************************************************************************************
 		 * NOTE:
 		 * 			We are handling the window messages, but the state changes happen within
 		 * 			the WindowProcedure function. If WM_CLOSE or WM_DESTROY are called, then
@@ -278,8 +317,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * We will begin by executing the game's runtime code.
 		 */
 		engine_library& EngineLib = ApplicationState.EngineLibrary;
-		EngineLib.EngineRuntime(); 
-
+		EngineLib.EngineRuntime(GameMemoryLayout); 
 
 		RenderSoftwareBitmap();
 
