@@ -1,13 +1,14 @@
-#include "game.h"
-#include <windows.h>
+#include <nxcore/engine/game.h>
+#include <nxcore/memory.h>
 
 typedef struct engine_state
 {
+	NXA::btmonotonic_memory_arena EngineMemoryArena;
 	b32 Initialized;
 } engine_state;
 
 extern "C" __declspec(dllexport) i32
-EngineRuntime(memory_layout* MemoryLayout)
+EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer)
 {
 
 	/**
@@ -25,6 +26,21 @@ EngineRuntime(memory_layout* MemoryLayout)
 	if (EngineState->Initialized == NULL)
 	{
 		EngineState->Initialized = true;
+
+		/**
+		 * We will need to set up the memory layout.
+		 */
+
+
+
+		/**
+		 * We are going to emulate the NES screen resolution, 256x240. To do this, we are going to
+		 * resize the renderer.
+		 */
+
+		Renderer->Width = 256;
+		Renderer->Height = 240;
+
 	}
 
 	
