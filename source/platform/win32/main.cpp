@@ -82,16 +82,22 @@ RenderSoftwareBitmap(app_state* ApplicationState, void* BitmapData, i32 BitmapWi
 {
 
 	BITMAPINFO BitmapInfo = {0};
-	BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader);
+	BitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	BitmapInfo.bmiHeader.biWidth = BitmapWidth;
 	BitmapInfo.bmiHeader.biHeight = BitmapHeight;
 	BitmapInfo.bmiHeader.biPlanes = 1;
 	BitmapInfo.bmiHeader.biBitCount = 32;
 	BitmapInfo.bmiHeader.biCompression = BI_RGB;
-	BitmapInfo.bmiHeader.biSizeImage = 0;
+	BitmapInfo.bmiHeader.biSizeImage = BitmapWidth*BitmapHeight*sizeof(u32);
 
-	StretchDIBits(ApplicationState->WindowDeviceContext, 0, 0, BitmapWidth, BitmapHeight, 0, 0,
-		BitmapWidth, BitmapHeight, BitmapData, &BitmapInfo, DIB_RGB_COLORS, WHITENESS);
+	i32 Status = StretchDIBits(ApplicationState->WindowDeviceContext, 0, 0, BitmapWidth, BitmapHeight, 0, 0,
+		BitmapWidth, BitmapHeight, BitmapData, &BitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+
+	if (Status)
+	{
+		// do something
+		i32 HelloWorld = 0;
+	}
 
 }
 
@@ -272,6 +278,22 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	assert(ActualWindowWidth == INIT_WINDOW_WIDTH);
 	assert(ActualWindowHeight == INIT_WINDOW_HEIGHT);
 #endif
+
+	/**
+	 * Setting up performance timing for the application runtime.
+	 * 
+	 * TODO:
+	 * 			We need to set up a way of maintaining some form of frame-timing and performance monitoring.
+	 * 			This will be accomplished using Windows' QPC.
+	 * 
+	 * QueryPerformanceCounter
+	 * 			https://docs.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps
+	 */
+	LARGE_INTEGER StartingTime;
+	LARGE_INTEGER PerformanceFrequency;
+	QueryPerformanceCounter(&StartingTime);
+	QueryPerformanceFrequency(&PerformanceFrequency);
+
 
 	/**
 	 * Allocate the heap necessary for application runtime. These are set up in the ApplicationStates'
