@@ -200,6 +200,54 @@ namespace NXA
 	}
 
 	/**
+	 * Resets a monotonic memory arena and sets all used bytes to 0.
+	 */
+	void
+	ResetMonotonicMemoryArena(monotonic_memory_arena* Arena)
+	{
+		nx_memset(Arena->Base, (u32)Arena->Commit);
+		Arena->Commit = 0;
+		Arena->Offset = Arena->Base;
+		return;
+	}
+
+	/**
+	 * Resets the bottom portion of the bottom-top monotonic memory
+	 * arena and sets all used bytes to 0.
+	 */
+	void
+	ResetBTMonotonicMemoryArenaBottom(btmonotonic_memory_arena* Arena)
+	{
+		// We need to find out how much space the bottom occupies, we can do
+		// this by subtracting the base from the bottom offset which gives us
+		// the amount of room the allocation has used.
+		u32 BottomSize = (u32)((u8*)Arena->OffsetBottom - (u8*)Arena->Base);
+		nx_memset(Arena->Base, BottomSize);
+
+		// Since the commit is shared with the top as well, we just subtract the bottom portion.
+		Arena->Commit -= BottomSize;
+		Arena->OffsetBottom = Arena->Base;
+	}
+
+	/**
+	 * Resets the top portion of the bottom-top monotonic memory
+	 * arena and sets all used bytes to 0.
+	 */
+	void
+	ResetBTMonotonicMemoryArenaTop(btmonotonic_memory_arena* Arena)
+	{
+		// We need to find out how much space the top occupies similar to
+		// to the way we did it for resetting the bottom, except now
+		// we are subtracting to offset from the end of the allocation range.
+		u32 TopSize = (u32)(((u8*)Arena->Base + Arena->Size) - ((u8*)Arena->OffsetTop));
+
+		nx_memset(Arena->OffsetTop, TopSize);
+		Arena->Commit -= TopSize;
+		Arena->OffsetTop = (void*)((u8*)Arena->Base + Arena->Size);
+
+	}
+
+	/**
 	 * Various push helpers for the monotonic arena allocator.
 	 */
 #define MonotonicArenaPushSize(ArenaPtr, Size) (void*)__push_size(ArenaPtr, Size)

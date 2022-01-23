@@ -1,9 +1,17 @@
 #include <nxcore/engine/game.h>
 #include <nxcore/memory.h>
 
+typedef struct engine_soft_renderer_state
+{
+	i32 Width;
+	i32 Height;
+	u32* Data;
+} engine_soft_renderer;
+
 typedef struct engine_state
 {
 	NXA::btmonotonic_memory_arena EngineMemoryArena;
+	engine_soft_renderer_state RendererState;
 	b32 Initialized;
 } engine_state;
 
@@ -28,22 +36,34 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer)
 		EngineState->Initialized = true;
 
 		/**
-		 * We will need to set up the memory layout.
+		 * We will need to set up the memory layout. Since the engine state shares to head of
+		 * memory layout, we need to subtract that from the total size and offset the base pointer
+		 * accordingly.
 		 */
-
+		void* EngineHeapBasePointer = (void*)((u8*)MemoryLayout->Base + sizeof(engine_state));
+		u32 EngineHeapSize = (u32)(MemoryLayout->Size - sizeof(engine_state));
+		EngineState->EngineMemoryArena = NXA::CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
 
 
 		/**
 		 * We are going to emulate the NES screen resolution, 256x240. To do this, we are going to
-		 * resize the renderer.
+		 * resize the renderer to the appropriate resolution and then grab an area on the heap required
+		 * to fill that buffer.
 		 */
-
 		Renderer->Width = 256;
 		Renderer->Height = 240;
+		EngineState->RendererState.Width = Renderer->Width;
+		EngineState->RendererState.Height = Renderer->Height;
+		EngineState->RendererState.Data = (u32*)BTMonotonicArenaPushBottomSize(&EngineState->EngineMemoryArena, (256*240)*sizeof(u32));
 
 	}
-
 	
+	Renderer->Image = (void*)EngineState->RendererState.Data;
+	for (u32 pIndex = 0; pIndex < 256*240; ++pIndex)
+	{
+		u32* Pixel = (u32*)Renderer->Image + pIndex;
+		*Pixel = 0x00FF0000;
+	}
 
 	return(0);
 }
