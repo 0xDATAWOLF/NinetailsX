@@ -388,9 +388,23 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * 			The engine runtime contains a number of side-effects we will need to consider.
 		 * 			The first side effect is that the engine may request a new window size. We will handle
 		 * 			this accordingly.
+		 * 
+		 * 			The return value of EngineRuntime() determines if the application should close based
+		 * 			on the request of the engine client or user. We need to respect this decision by
+		 * 			exitting gracefully. For now, we are assuming that all non-zero values request a close.
+		 * 			
+		 * TODO:
+		 * 			Define an enumeration outlining various reasons for closing, such as standard exits,
+		 * 			error exits, re-init exits, etc.
 		 */
 		engine_library& EngineLib = ApplicationState.EngineLibrary;
-		EngineLib.EngineRuntime(GameMemoryLayout, Renderer); 
+		b32 EngineStatus = EngineLib.EngineRuntime(GameMemoryLayout, Renderer); 
+
+		// If the engine status returns non-zero status, it means we should close.
+		if (EngineStatus != NULL)
+		{
+
+		}
 
 		// The engine may request the window be resized the accomodate the size of the render area.
 		RECT CurrentWindowRect = {0};
