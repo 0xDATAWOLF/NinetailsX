@@ -5,6 +5,10 @@ typedef struct engine_state
 {
 	NXA::btmonotonic_memory_arena EngineMemoryArena;
 	b32 Initialized;
+
+	i32 x, y;
+	b32 mov_flip;
+
 } engine_state;
 
 /**
@@ -32,6 +36,11 @@ absolute(i32 Value)
 	return (Value >= 0 ? Value : Value*(i32)(-1));
 }
 
+/**
+ * DrawRect
+ * 			Draws a rectangle of a given size at a given position using a given hex-encoded color.
+ * 			This color follows the the 0xXXRRGGBB format.
+ */
 internal void
 DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 {
@@ -127,7 +136,7 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 }
 
 extern "C" __declspec(dllexport) i32
-EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer)
+EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, input_handle* InputHandle)
 {
 
 	/**
@@ -161,8 +170,8 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer)
 		 * resize the renderer to the appropriate resolution and then grab an area on the heap required
 		 * to fill that buffer.
 		 */
-		Renderer->Width = 256;
-		Renderer->Height = 240;
+		Renderer->Width = 160;
+		Renderer->Height = 144;
 
 	}
 	
@@ -183,13 +192,29 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer)
 		Renderer->Width*Renderer->Height*sizeof(u32));
 
 	// We will now fill the screen with a debug color: red!
-	for (u32 pIndex = 0; pIndex < 256*240; ++pIndex)
+	for (u32 pIndex = 0; pIndex < (u32)Renderer->Width*(u32)Renderer->Height; ++pIndex)
 	{
 		u32* Pixel = (u32*)Renderer->Image + pIndex;
 		*Pixel = 0x00FF0000;
 	}
 
-	DrawRect(Renderer, 0, 0, 10, 10, 0x00FFFFFF);
+	/**
+	 * In order to test the frameStep, we're going to update out x-pos by a fixed time to see
+	 * a simple animation of movement.
+	 */
+
+	if (EngineState->x == -50) EngineState->mov_flip = 1;
+	else if (EngineState->x == 120) EngineState->mov_flip = 0;
+	if (EngineState->mov_flip == 1)
+	{
+		EngineState->x++;
+	}
+	else
+	{
+		EngineState->x--;
+	}
+
+	DrawRect(Renderer, EngineState->x, EngineState->y, 100, 100, 0x00FFFFFF);
 
 	/**
 	 * NOTE:
