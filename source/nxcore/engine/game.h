@@ -1,5 +1,5 @@
-#ifndef NINETAILS_GAME_H
-#define NINETAILS_GAME_H
+#ifndef NINETAILSX_GAME_H
+#define NINETAILSX_GAME_H
 #include <nxcore/primitives.h>
 
 typedef struct input_handle

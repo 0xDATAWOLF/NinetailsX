@@ -1,9 +1,10 @@
 #include <nxcore/engine/game.h>
 #include <nxcore/memory.h>
+#include <nxcore/math.h>
 
 typedef struct engine_state
 {
-	NXA::btmonotonic_memory_arena EngineMemoryArena;
+	btmonotonic_memory_arena EngineMemoryArena;
 	b32 Initialized;
 
 	i32 x, y;
@@ -21,20 +22,6 @@ typedef struct engine_state
  */
 internal void
 __DrawLine() { /** IMPLEMENT LATER */ return; };
-
-/**
- * Returns the absolute value of an i32. The method used in this function is very elementary and
- * not as fast as some bit-magic methods may be, so therefore *don't* use this in anything
- * for production.
- * 
- * TODO:
- * 			Use bit-magic to flip the sign bit and handle two's compliment.
- */
-inline i32
-absolute(i32 Value)
-{
-	return (Value >= 0 ? Value : Value*(i32)(-1));
-}
 
 /**
  * DrawRect
@@ -68,7 +55,7 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 	// by the y offset to adjust height such that it is within bounds and then set the y to 0.
 	else if (y < 0)
 	{
-		RectHeight -= absolute(y); // Value is negative, but for the sake understandability...
+		RectHeight -= absolute_i32(y); // Value is negative, but for the sake understandability...
 		RectY = 0;
 	}
 
@@ -94,7 +81,7 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 
 	else if (x < 0)
 	{
-		RectWidth -= absolute(x);
+		RectWidth -= absolute_i32(x);
 		RectX = 0;
 	}
 
@@ -162,7 +149,7 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, input_handle* Inp
 		 */
 		void* EngineHeapBasePointer = (void*)((u8*)MemoryLayout->Base + sizeof(engine_state));
 		u32 EngineHeapSize = (u32)(MemoryLayout->Size - sizeof(engine_state));
-		EngineState->EngineMemoryArena = NXA::CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
+		EngineState->EngineMemoryArena = CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
 
 
 		/**
@@ -181,7 +168,7 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, input_handle* Inp
 	 * 			This will reset every frame, therefore it's safe to shove volatile
 	 * 			memory into it so long as we reset it.
 	 */
-	NXA::ResetBTMonotonicMemoryArenaTop(&EngineState->EngineMemoryArena);
+	ResetBTMonotonicMemoryArenaTop(&EngineState->EngineMemoryArena);
 
 	/**
 	 * We need to allocate space for the software bitmap. Since we know that the bitmap will be an
@@ -215,6 +202,20 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, input_handle* Inp
 	}
 
 	DrawRect(Renderer, EngineState->x, EngineState->y, 100, 100, 0x00FFFFFF);
+
+	v2 myVector = {0};
+	myVector.x = 10;
+	myVector.y = 10;
+
+	v3 fooVector = {0};
+	fooVector.xy = myVector;
+	fooVector.y = 20;
+	fooVector.z = 10;
+
+	v4 barVector = {0};
+	barVector.xyz = fooVector;
+	barVector.zw = myVector;
+	barVector.w += 10.0f;
 
 	/**
 	 * NOTE:
