@@ -4,6 +4,8 @@
 #include <nxcore/memory.h>
 #include <nxcore/engine/game.h>
 
+#include <stdio.h>
+
 typedef struct engine_library
 {
 	fnptr_engine_runtime* EngineRuntime;
@@ -14,6 +16,8 @@ typedef struct app_state
 	engine_library EngineLibrary;
 	memory_layout MemoryLayout;
 	renderer Renderer;
+	input_handle InputHandle;
+	u64 PerformanceFrequency;
 	HDC WindowDeviceContext;
 	b32 isRunnning;
 } app_state;
@@ -184,6 +188,35 @@ WindowProcedure(HWND WindowHandle, u32 Message, WPARAM wParam, LPARAM lParam)
 	return(DefWindowProcA(WindowHandle, Message, wParam, lParam));
 }
 
+/**
+ * Retrieves the current performance counter from QueryPerformanceCounter and returns
+ * it as a 64-bit unsigned integer.
+ */
+inline u64
+GetCurrentPerformanceStamp()
+{
+
+	LARGE_INTEGER Timestamp;
+	QueryPerformanceCounter(&Timestamp);
+	return Timestamp.QuadPart;
+
+}
+
+/**
+ * Retrives the current time in milliseconds using a previous QPC timestamp and
+ * returns it as a float.
+ */
+inline r32
+GetPerformanceTimeDifferenceMilliseconds(u64 frequency, u64 previous)
+{
+	u64 now = GetCurrentPerformanceStamp();
+	u64 difference = now - previous;
+	u64 differenceMilliseconds = difference * 1000; // Conversion to milliseconds.
+	r32 Time = (r32)differenceMilliseconds / (r32)frequency;
+	return Time;
+}
+
+
 i32 WINAPI
 wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int CommandShow)
 {
@@ -289,11 +322,9 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 * QueryPerformanceCounter
 	 * 			https://docs.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps
 	 */
-	LARGE_INTEGER StartingTime;
 	LARGE_INTEGER PerformanceFrequency;
-	QueryPerformanceCounter(&StartingTime);
 	QueryPerformanceFrequency(&PerformanceFrequency);
-
+	ApplicationState.PerformanceFrequency = PerformanceFrequency.QuadPart;
 
 	/**
 	 * Allocate the heap necessary for application runtime. These are set up in the ApplicationStates'
@@ -357,11 +388,34 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	InitializeNinetailsXEngine(modulePath, &ApplicationState.EngineLibrary);
 
 	/**
+	 * We need to ensure that the Windows scheduler is fine-grained enough for us to hit our software
+	 * v-sync time consistently. To do this, we will use timeBeginPeriod(1). Then we need to establish
+	 * what our vsync frame target is. This is relatively easy to calculate.
+	 * 
+	 * NOTE:
+	 * 			The frameTarget will need to be adjusted should we begin to miss our frame targets.
+	 * 
+	 * NOTE:
+	 * 			Additionally, since the scheduler may not wake up on the exact moment we want, we an
+	 * 			"offset" of sorts such that we can "busy-spin" the remainder of the frame for the highest
+	 * 			accuracy "flip-time".
+	 */
+	MMRESULT timePeriodResult = timeBeginPeriod(1);
+	r32 frameTarget = (r32)1000 / 60; // 1000ms = 1s diveded by how many frames per second = how many ms/frame
+	r32 sleepOffset = 1.0;
+
+#ifdef NINETAILSX_DEBUG
+	// We want to make sure we get our requested time period in debug.
+	assert(timePeriodResult == TIMERR_NOERROR);
+#endif
+
+	/**
 	 * Begin the application runtime loop given that we have sucessfully established and loaded all
 	 * the necessary facilities to reach this point. We will show the window at this point.
 	 */
 	ShowWindow(WindowHandle, CommandShow);
 	ApplicationState.isRunnning = true;
+	u64 InitialFrameStamp = GetCurrentPerformanceStamp();
 	while (ApplicationState.isRunnning)
 	{
 
@@ -382,6 +436,13 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		}
 
 		/**
+		 * We have to process input for the engine, so we will do that here. This will also carry over
+		 * the frameStep/deltaTime over to the client, so we need to make sure that we're sending correct
+		 * data.
+		 */
+		ApplicationState.InputHandle.frameStep = frameTarget; // Consistent frame steps need target, not actual!
+
+		/**
 		 * We are executing the engine runtime here.
 		 * 
 		 * NOTE:
@@ -398,12 +459,12 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * 			error exits, re-init exits, etc.
 		 */
 		engine_library& EngineLib = ApplicationState.EngineLibrary;
-		b32 EngineStatus = EngineLib.EngineRuntime(GameMemoryLayout, Renderer); 
+		b32 EngineStatus = EngineLib.EngineRuntime(GameMemoryLayout, Renderer, &ApplicationState.InputHandle); 
 
 		// If the engine status returns non-zero status, it means we should close.
 		if (EngineStatus != NULL)
 		{
-
+			// TODO: Implement me! :)
 		}
 
 		// The engine may request the window be resized the accomodate the size of the render area.
@@ -421,7 +482,64 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 				NewWindowWidth, NewWindowHeight, SWP_NOMOVE|SWP_NOZORDER);
 		}
 		
+		/**
+		 * We need to create some v-sync for fixed-physics timescale or something close to it.
+		 * 
+		 * NOTE:
+		 * 			There are some limitations to using sleep as a form of software v-sync. Since
+		 * 			the Windows scheduler does not guarantee that it will switch to our process on time,
+		 * 			we may go below or above our requested sleep time.
+		 * 
+		 * 			We *could* busy spin for the highest-accuracy swap interval, as it will generally
+		 * 			be granular enough for us to hit our vsync timing with great precision. The problem
+		 * 			is that it will busy-spin, burning up the CPU for no other reason but to keep accuracy.
+		 * 			Instead, we can under-estimate our sleep time, guaranteeing that we are short of flip,
+		 * 			busy spin the difference, and keep close to our frame target.
+		 */
+		r32 frameTime = GetPerformanceTimeDifferenceMilliseconds(ApplicationState.PerformanceFrequency,
+			InitialFrameStamp);
+		r32 initFrameTime = frameTime; // frameTime will change during the sleep loop, let's preserve it here.
+
+		r32 sleepTime = frameTarget - frameTime;
+		r32 initSleepTime = (r32)((u32)(sleepTime - sleepOffset));
+		if (sleepTime > 0.0f)
+		{
+			Sleep((u32)(sleepTime-sleepOffset)); // Sleep wants flat ms, so we just truncate the sleep time.
+			frameTime = GetPerformanceTimeDifferenceMilliseconds(ApplicationState.PerformanceFrequency, InitialFrameStamp);
+			sleepTime = frameTarget - frameTime;
+		}
+
+		r32 busySpinTime = sleepTime; // We want to preserve how long we spend busy-spinning.
+		if (busySpinTime > 0.0f)
+		{
+			while (frameTime < frameTarget)
+			{
+				frameTime = GetPerformanceTimeDifferenceMilliseconds(ApplicationState.PerformanceFrequency, InitialFrameStamp);
+				sleepTime = frameTarget - frameTime;
+			}
+		}
+
+#ifdef NINETAILSX_DEBUG
+		/**
+		 * This will print out the Visual Studio's debug console the frame timings. We can use this to
+		 * do simple performance monitoring.
+		 */
+		char frameDebugString[256];
+		sprintf_s(frameDebugString, 256, "Frame Timing :: Target %.2fms | Actual %.2fms | Sleeptime %.2fs | Spintime %.2fms | Postsleep %.2fms \n",
+			frameTarget, initFrameTime, initSleepTime, busySpinTime, frameTime);
+		OutputDebugStringA(frameDebugString);
+#endif
+
+		/**
+		 * We are rendering the bitmap to the screen using a "software" implementation--that is, we're
+		 * just drawing straight to the Window using Window's bitmap drawing method. This 
+		 */
 		RenderSoftwareBitmap(&ApplicationState, Renderer->Image, Renderer->Width, Renderer->Height);
+
+		/**
+		 * We will now reset everything for the next frame.
+		 */
+		InitialFrameStamp = GetCurrentPerformanceStamp(); // Sets the timing of the next frame.
 
 	}
 

@@ -2,6 +2,11 @@
 #define NINETAILS_GAME_H
 #include <nxcore/primitives.h>
 
+typedef struct input_handle
+{
+	r32 frameStep; // The v-sync frame timing for physics calculations.
+} input_handle;
+
 /**
  * renderer
  * 			The render layout which serves as an in/out method of providing rendering data to the
@@ -28,6 +33,6 @@ typedef struct memory_layout
 	u64 Size;
 } memory_layout;
 
-typedef i32 fnptr_engine_runtime(memory_layout* MemoryLayout, renderer* Renderer);
+typedef i32 fnptr_engine_runtime(memory_layout* MemoryLayout, renderer* Renderer, input_handle* InputHandle);
 
 #endif
