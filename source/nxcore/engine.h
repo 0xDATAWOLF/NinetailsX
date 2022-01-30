@@ -2,10 +2,10 @@
 #define NINETAILSX_GAME_H
 #include <nxcore/primitives.h>
 
-typedef struct input_handle
+typedef struct input
 {
 	r32 frameStep; // The v-sync frame timing for physics calculations.
-} input_handle;
+} input;
 
 /**
  * renderer
@@ -33,6 +33,6 @@ typedef struct memory_layout
 	u64 Size;
 } memory_layout;
 
-typedef i32 fnptr_engine_runtime(memory_layout* MemoryLayout, renderer* Renderer, input_handle* InputHandle);
+typedef i32 fnptr_engine_runtime(memory_layout* MemoryLayout, renderer* Renderer, input* InputHandle);
 
 #endif
