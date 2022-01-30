@@ -1,4 +1,4 @@
-#include <nxcore/engine/game.h>
+#include <nxcore/engine.h>
 #include <nxcore/memory.h>
 #include <nxcore/math.h>
 

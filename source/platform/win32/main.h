@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <nxcore/helpers.h>
 #include <nxcore/memory.h>
-#include <nxcore/engine/game.h>
+#include <nxcore/engine.h>
 
 
 typedef struct engine_library
