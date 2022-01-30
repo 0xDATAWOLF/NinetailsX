@@ -1,29 +1,16 @@
-#include <windows.h>
+/**
+ * 
+ * The big-bad todo list & bug-fix list!
+ * 
+ * TODO:	Engine layer initialization:
+ * 			We need a way of initializing the engine before opening the window so we know what size it
+ * 			is expecting before actually opening. The first frame will always be the default window size
+ * 			before the engine forces it to the size it wants.
+ * 
+ */
 
-#include <nxcore/helpers.h>
-#include <nxcore/memory.h>
-#include <nxcore/engine/game.h>
-
+#include "main.h"
 #include <stdio.h>
-
-typedef struct engine_library
-{
-	fnptr_engine_runtime* EngineRuntime;
-} engine_library;
-
-typedef struct app_state
-{
-	engine_library EngineLibrary;
-	memory_layout MemoryLayout;
-	renderer Renderer;
-	input_handle InputHandle;
-	u64 PerformanceFrequency;
-	HDC WindowDeviceContext;
-	b32 isRunnning;
-} app_state;
-
-app_state ApplicationState = {0};
-
 
 /**
  * This will load the engine library code and assign it to the struct which carries the
@@ -124,7 +111,7 @@ WindowProcedure(HWND WindowHandle, u32 Message, WPARAM wParam, LPARAM lParam)
 			 * 			For the most part, we may need to quickly save up any data before exiting, but
 			 * 			freeing memory here is entirely optional because the OS will gobble that back up.
 			 */
-			ApplicationState.isRunnning = false;
+			ApplicationState->isRunnning = false;
 		} break;
 
 		case WM_SETCURSOR:
@@ -222,6 +209,13 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 {
 
 	/**
+	 * We must guarantee the existence of ApplicationState on startup. Here, we will initialize it
+	 * and set the variable as declared in main.h.
+	 */
+	app_state _appState = {0};
+	ApplicationState = &_appState;
+
+	/**
 	 * Create & fill out the WNDCLASS struct.
 	 * 
 	 * NOTE:	
@@ -287,7 +281,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, WindowWidth, WindowHeight, NULL,
 		NULL, hInstance, NULL);
 
-	renderer* Renderer = &ApplicationState.Renderer;
+	renderer* Renderer = &ApplicationState->Renderer;
 	Renderer->Width = WindowWidth;
 	Renderer->Height = WindowHeight;
 
@@ -297,7 +291,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 * 			Therefore, if this was to ever change, we will need to release our device context after
 	 * 			we use it.
 	 */
-	ApplicationState.WindowDeviceContext = GetDC(WindowHandle);
+	ApplicationState->WindowDeviceContext = GetDC(WindowHandle);
 
 #ifdef NINETAILSX_DEBUG
 	// Ensuring that we actually got the window handle.
@@ -324,7 +318,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 */
 	LARGE_INTEGER PerformanceFrequency;
 	QueryPerformanceFrequency(&PerformanceFrequency);
-	ApplicationState.PerformanceFrequency = PerformanceFrequency.QuadPart;
+	ApplicationState->PerformanceFrequency = PerformanceFrequency.QuadPart;
 
 	/**
 	 * Allocate the heap necessary for application runtime. These are set up in the ApplicationStates'
@@ -343,9 +337,9 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 #else
 	void* HeapMemory = VirtualAlloc((void*)0x00, VIRTUAL_ALLOCATION_SIZE, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
 #endif
-	ApplicationState.MemoryLayout.Base = HeapMemory;
-	ApplicationState.MemoryLayout.Size = VIRTUAL_ALLOCATION_SIZE;
-	memory_layout* GameMemoryLayout = &ApplicationState.MemoryLayout;
+	ApplicationState->MemoryLayout.Base = HeapMemory;
+	ApplicationState->MemoryLayout.Size = VIRTUAL_ALLOCATION_SIZE;
+	memory_layout* GameMemoryLayout = &ApplicationState->MemoryLayout;
 
 	/**
 	 * We need to establish the root path of the executable which we use to search for all assets.
@@ -385,7 +379,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	nx_memcopy(modulePath, basePath, BasePathCount); 
 	nx_memcopy(modulePath+BasePathCount, moduleName, (u32)strlen(moduleName));
 	*(modulePath+BasePathCount+strlen(moduleName)) = '\0'; // Null terminate.
-	InitializeNinetailsXEngine(modulePath, &ApplicationState.EngineLibrary);
+	InitializeNinetailsXEngine(modulePath, &ApplicationState->EngineLibrary);
 
 	/**
 	 * We need to ensure that the Windows scheduler is fine-grained enough for us to hit our software
@@ -414,9 +408,9 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 * the necessary facilities to reach this point. We will show the window at this point.
 	 */
 	ShowWindow(WindowHandle, CommandShow);
-	ApplicationState.isRunnning = true;
+	ApplicationState->isRunnning = true;
 	u64 InitialFrameStamp = GetCurrentPerformanceStamp();
-	while (ApplicationState.isRunnning)
+	while (ApplicationState->isRunnning)
 	{
 
 		/**
@@ -440,7 +434,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * the frameStep/deltaTime over to the client, so we need to make sure that we're sending correct
 		 * data.
 		 */
-		ApplicationState.InputHandle.frameStep = frameTarget; // Consistent frame steps need target, not actual!
+		ApplicationState->InputHandle.frameStep = frameTarget; // Consistent frame steps need target, not actual!
 
 		/**
 		 * We are executing the engine runtime here.
@@ -458,8 +452,8 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * 			Define an enumeration outlining various reasons for closing, such as standard exits,
 		 * 			error exits, re-init exits, etc.
 		 */
-		engine_library& EngineLib = ApplicationState.EngineLibrary;
-		b32 EngineStatus = EngineLib.EngineRuntime(GameMemoryLayout, Renderer, &ApplicationState.InputHandle); 
+		engine_library& EngineLib = ApplicationState->EngineLibrary;
+		b32 EngineStatus = EngineLib.EngineRuntime(GameMemoryLayout, Renderer, &ApplicationState->InputHandle); 
 
 		// If the engine status returns non-zero status, it means we should close.
 		if (EngineStatus != NULL)
@@ -496,7 +490,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * 			Instead, we can under-estimate our sleep time, guaranteeing that we are short of flip,
 		 * 			busy spin the difference, and keep close to our frame target.
 		 */
-		r32 frameTime = GetPerformanceTimeDifferenceMilliseconds(ApplicationState.PerformanceFrequency,
+		r32 frameTime = GetPerformanceTimeDifferenceMilliseconds(ApplicationState->PerformanceFrequency,
 			InitialFrameStamp);
 		r32 initFrameTime = frameTime; // frameTime will change during the sleep loop, let's preserve it here.
 
@@ -505,7 +499,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		if (sleepTime > 0.0f)
 		{
 			Sleep((u32)(sleepTime-sleepOffset)); // Sleep wants flat ms, so we just truncate the sleep time.
-			frameTime = GetPerformanceTimeDifferenceMilliseconds(ApplicationState.PerformanceFrequency, InitialFrameStamp);
+			frameTime = GetPerformanceTimeDifferenceMilliseconds(ApplicationState->PerformanceFrequency, InitialFrameStamp);
 			sleepTime = frameTarget - frameTime;
 		}
 
@@ -514,7 +508,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		{
 			while (frameTime < frameTarget)
 			{
-				frameTime = GetPerformanceTimeDifferenceMilliseconds(ApplicationState.PerformanceFrequency, InitialFrameStamp);
+				frameTime = GetPerformanceTimeDifferenceMilliseconds(ApplicationState->PerformanceFrequency, InitialFrameStamp);
 				sleepTime = frameTarget - frameTime;
 			}
 		}
@@ -534,7 +528,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * We are rendering the bitmap to the screen using a "software" implementation--that is, we're
 		 * just drawing straight to the Window using Window's bitmap drawing method. This 
 		 */
-		RenderSoftwareBitmap(&ApplicationState, Renderer->Image, Renderer->Width, Renderer->Height);
+		RenderSoftwareBitmap(ApplicationState, Renderer->Image, Renderer->Width, Renderer->Height);
 
 		/**
 		 * We will now reset everything for the next frame.
