@@ -2,11 +2,17 @@
  * 
  * The big-bad todo list & bug-fix list!
  * 
- * TODO:	Engine layer initialization:
+ * TODO:			Engine layer initialization
  * 			We need a way of initializing the engine before opening the window so we know what size it
  * 			is expecting before actually opening. The first frame will always be the default window size
  * 			before the engine forces it to the size it wants.
  * 
+ * TESTING:			Memory functions (memset/memcopy)
+ * 			I actually haven't tested these functions to determine if they're working the way they're
+ * 			designed. I'm assuming that they work because I implemented them in a very similar way in
+ * 			the past that I know to work, but you never know unless I do proper debugging. For now,
+ * 			it doesn't seem to cause any segment faults (since the bitmap buffer is used on the tail
+ * 			end of the heap allocation, any over-runs would cause a seg-fault).
  */
 
 #include "main.h"
@@ -382,6 +388,16 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	InitializeNinetailsXEngine(modulePath, &ApplicationState->EngineLibrary);
 
 	/**
+	 * We need to set up the input swap buffer. We need to manage the current input and the previous
+	 * so we can determine whether or not a button was released. We can only determine this information
+	 * (using the method I am currently using) by using a swap buffer.
+	 */
+	input* currentInput = &ApplicationState->InputSwapBuffer[0];
+	input* previousInput = &ApplicationState->InputSwapBuffer[1];
+	*currentInput = {0};
+	*previousInput = {0};
+
+	/**
 	 * We need to ensure that the Windows scheduler is fine-grained enough for us to hit our software
 	 * v-sync time consistently. To do this, we will use timeBeginPeriod(1). Then we need to establish
 	 * what our vsync frame target is. This is relatively easy to calculate.
@@ -433,8 +449,45 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * We have to process input for the engine, so we will do that here. This will also carry over
 		 * the frameStep/deltaTime over to the client, so we need to make sure that we're sending correct
 		 * data.
+		 * 
+		 * Additionally, we will capture the keyboard state as it were since the last message capture.
+		 * This is fine because we pump the message loop at the head of every frame.
+		 * 
+		 * GetKeyState:
+		 * 			https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeystate
 		 */
 		ApplicationState->InputHandle.frameStep = frameTarget; // Consistent frame steps need target, not actual!
+		ApplicationState->InputHandle.frame_input = currentInput;
+		*currentInput = {0}; // Reset
+
+		// We are capturing the "Z" key's state, mapping it to the "a button".
+		b32 aButtonState = (GetKeyState('Z') & (1 << 15));
+
+		if (previousInput->aButton.down && aButtonState == 0)
+		{
+			currentInput->aButton.released = true;
+			currentInput->aButton.down = false;
+		}
+		else if (aButtonState != 0)
+		{
+			currentInput->aButton.down = true;
+			currentInput->aButton.released = false;
+		}
+
+		// Now for the "X" key's state.
+		b32 bButtonState = (GetKeyState('X') & (1 << 15));
+
+
+		if (previousInput->bButton.down && bButtonState == 0)
+		{
+			currentInput->bButton.released = true;
+			currentInput->bButton.down = false;
+		}
+		else if (bButtonState != 0)
+		{
+			currentInput->bButton.down = true;
+			currentInput->bButton.released = false;
+		}
 
 		/**
 		 * We are executing the engine runtime here.
@@ -475,6 +528,13 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 			SetWindowPos(WindowHandle, NULL, NULL, NULL,
 				NewWindowWidth, NewWindowHeight, SWP_NOMOVE|SWP_NOZORDER);
 		}
+
+		/**
+		 * Now that the frame is completed, we can swap the input buffers for the next frame.
+		 */
+		input** placeholder = &currentInput;
+		currentInput = previousInput;
+		previousInput = *placeholder;
 		
 		/**
 		 * We need to create some v-sync for fixed-physics timescale or something close to it.
