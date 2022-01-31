@@ -123,7 +123,7 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 }
 
 extern "C" __declspec(dllexport) i32
-EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, input* InputHandle)
+EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface* InputHandle)
 {
 
 	/**
@@ -187,7 +187,7 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, input* InputHandl
 
 	/**
 	 * In order to test the frameStep, we're going to update out x-pos by a fixed time to see
-	 * a simple animation of movement.
+	 * a simple animation of movement. Here, we also test input.
 	 */
 
 	if (EngineState->x == -50) EngineState->mov_flip = 1;
@@ -201,21 +201,17 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, input* InputHandl
 		EngineState->x--;
 	}
 
+	if (InputHandle->frame_input->aButton.down)
+	{
+		EngineState->y++;
+	}
+
+	if (InputHandle->frame_input->bButton.down)
+	{
+		EngineState->y--;
+	}
+
 	DrawRect(Renderer, EngineState->x, EngineState->y, 100, 100, 0x00FFFFFF);
-
-	v2 myVector = {0};
-	myVector.x = 10;
-	myVector.y = 10;
-
-	v3 fooVector = {0};
-	fooVector.xy = myVector;
-	fooVector.y = 20;
-	fooVector.z = 10;
-
-	v4 barVector = {0};
-	barVector.xyz = fooVector;
-	barVector.zw = myVector;
-	barVector.w += 10.0f;
 
 	/**
 	 * NOTE:

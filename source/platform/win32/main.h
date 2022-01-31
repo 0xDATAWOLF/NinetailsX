@@ -4,6 +4,7 @@
 #include <nxcore/helpers.h>
 #include <nxcore/memory.h>
 #include <nxcore/engine.h>
+#include <nxcore/input.h>
 
 
 typedef struct engine_library
@@ -16,7 +17,8 @@ typedef struct app_state
 	engine_library EngineLibrary;
 	memory_layout MemoryLayout;
 	renderer Renderer;
-	input InputHandle;
+	action_interface InputHandle;
+	input InputSwapBuffer[2];
 	u64 PerformanceFrequency;
 	HDC WindowDeviceContext;
 	b32 isRunnning;
