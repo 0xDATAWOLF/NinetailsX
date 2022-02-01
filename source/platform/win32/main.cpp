@@ -209,7 +209,28 @@ GetPerformanceTimeDifferenceMilliseconds(u64 frequency, u64 previous)
 	return Time;
 }
 
+/**
+ * Fetches the state of keyboard using a key code and determines the state of input.
+ */
+internal void
+setInputButtonState(u8 keyCode, button* previousInputButton, button* currentInputButton)
+{
+	u32 keyState = (GetKeyState(keyCode) & (1 << 15));
+	if (previousInputButton->down && keyState == 0)
+	{
+		currentInputButton->released = true;
+		currentInputButton->down = false;
+	}
+	else if (keyState != 0)
+	{
+		currentInputButton->down = true;
+		currentInputButton->released = false;
+	}
+}
 
+/**
+ * Defines the entry point for a win32 application.
+ */
 i32 WINAPI
 wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int CommandShow)
 {
@@ -460,34 +481,14 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		ApplicationState->InputHandle.frame_input = currentInput;
 		*currentInput = {0}; // Reset
 
-		// We are capturing the "Z" key's state, mapping it to the "a button".
-		b32 aButtonState = (GetKeyState('Z') & (1 << 15));
-
-		if (previousInput->aButton.down && aButtonState == 0)
-		{
-			currentInput->aButton.released = true;
-			currentInput->aButton.down = false;
-		}
-		else if (aButtonState != 0)
-		{
-			currentInput->aButton.down = true;
-			currentInput->aButton.released = false;
-		}
-
-		// Now for the "X" key's state.
-		b32 bButtonState = (GetKeyState('X') & (1 << 15));
-
-
-		if (previousInput->bButton.down && bButtonState == 0)
-		{
-			currentInput->bButton.released = true;
-			currentInput->bButton.down = false;
-		}
-		else if (bButtonState != 0)
-		{
-			currentInput->bButton.down = true;
-			currentInput->bButton.released = false;
-		}
+		setInputButtonState('Z', &previousInput->aButton, &currentInput->aButton);
+		setInputButtonState('X', &previousInput->bButton, &currentInput->aButton);
+		setInputButtonState(VK_RETURN, &previousInput->startButton, &currentInput->startButton);
+		setInputButtonState(VK_RSHIFT, &previousInput->selectButton, &currentInput->selectButton);
+		setInputButtonState(VK_RIGHT, &previousInput->rightButton, &currentInput->rightButton);
+		setInputButtonState(VK_LEFT, &previousInput->leftButton, &currentInput->leftButton);
+		setInputButtonState(VK_UP, &previousInput->upButton, &currentInput->upButton);
+		setInputButtonState(VK_DOWN, &previousInput->downButton, &currentInput->downButton);
 
 		/**
 		 * We are executing the engine runtime here.
