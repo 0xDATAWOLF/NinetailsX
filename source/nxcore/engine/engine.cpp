@@ -119,8 +119,9 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 		}
 	}
 
-
 }
+
+
 
 extern "C" __declspec(dllexport) i32
 EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface* InputHandle)
