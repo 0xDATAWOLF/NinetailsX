@@ -16,6 +16,7 @@
  */
 
 #include "main.h"
+#include <nxcore/string.h>
 #include <stdio.h>
 
 /**
@@ -228,6 +229,12 @@ setInputButtonState(u8 keyCode, button* previousInputButton, button* currentInpu
 	}
 }
 
+internal void
+constructPathFromBase(char* base, u32 baseLength, char* relative, u32 relativeLength, char* dest, u32 destLength)
+{
+
+}
+
 /**
  * Defines the entry point for a win32 application.
  */
@@ -403,10 +410,23 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 */
 	u32 BasePathCount = (u32)(lastSlash - executablePath);
 	nx_memcopy(basePath, executablePath, BasePathCount);
+	*(basePath + BasePathCount) = '\0';
+#if 0
 	nx_memcopy(modulePath, basePath, BasePathCount); 
 	nx_memcopy(modulePath+BasePathCount, moduleName, (u32)strlen(moduleName));
 	*(modulePath+BasePathCount+strlen(moduleName)) = '\0'; // Null terminate.
+#else
+	ConcatenateStrings_s(basePath, MAX_PATH, "NinetailsXEngine.dll", (u32)sizeof("NinetailsXEngine.dll"), modulePath, MAX_PATH);
+#endif
 	InitializeNinetailsXEngine(modulePath, &ApplicationState->EngineLibrary);
+
+	//constructPathFromBase(basePath);
+
+	/**
+	 * Here, we are loading the initial bitmap manually. We will use this as our initial
+	 * means for fetching files before abstracting it over to the engine.
+	 */
+	//HANDLE BitmapFileHandle = CreateFileA("")
 
 	/**
 	 * We need to set up the input swap buffer. We need to manage the current input and the previous
@@ -482,7 +502,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		*currentInput = {0}; // Reset
 
 		setInputButtonState('Z', &previousInput->aButton, &currentInput->aButton);
-		setInputButtonState('X', &previousInput->bButton, &currentInput->aButton);
+		setInputButtonState('X', &previousInput->bButton, &currentInput->bButton);
 		setInputButtonState(VK_RETURN, &previousInput->startButton, &currentInput->startButton);
 		setInputButtonState(VK_RSHIFT, &previousInput->selectButton, &currentInput->selectButton);
 		setInputButtonState(VK_RIGHT, &previousInput->rightButton, &currentInput->rightButton);
