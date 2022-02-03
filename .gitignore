@@ -1,5 +1,5 @@
 /bin
 /build
 /.vscode
+/assets/*
 !/assets/note.txt
-/assets
