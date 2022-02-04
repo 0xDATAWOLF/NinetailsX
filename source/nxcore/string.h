@@ -31,6 +31,31 @@ StringLength_s(char* string, u32 buff_size)
 }
 
 /**
+ * Searches a string for the null-terminator and returns the length of the string (minus the
+ * null-terminator). This function can and *will* explode on you if you input a non-null-term'd
+ * string.
+ */
+internal u32
+StringLength(char* string)
+{
+
+	u32 _size = 0;
+	while (*(string + _size) != '\0') ++_size;
+	return _size;
+
+}
+
+/**
+ * Returns, in bytes, the size of a given string. This assumes that the string is null-terminated.
+ */
+internal u32
+StringSize(char* string)
+{
+	u32 _size = StringLength(string) + 1; // Accounts for the null-terminated portion.
+	return _size;
+}
+
+/**
  * Concatenates string a and string b together and copies into dest buffer using the
  * "safe" method.
  */

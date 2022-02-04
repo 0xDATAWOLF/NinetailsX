@@ -29,6 +29,11 @@ typedef struct memory_layout
 	u64 Size;
 } memory_layout;
 
+/** Platform -> Engine */
+typedef u32 fnptr_platform_fetch_res_file(char* RelativePath, void* Buffer, u32 BuffSize);
+typedef u32 fnptr_platform_fetch_res_size(char* RelativePath);
+
+/** Engine -> Platform */
 typedef i32 fnptr_engine_runtime(memory_layout* MemoryLayout, renderer* Renderer, action_interface* InputHandle);
 
 #endif

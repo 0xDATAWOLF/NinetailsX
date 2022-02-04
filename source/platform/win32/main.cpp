@@ -230,6 +230,79 @@ setInputButtonState(u8 keyCode, button* previousInputButton, button* currentInpu
 }
 
 /**
+ * Fetches the size of a file from a relative path. This function looks at app_state for
+ * BasePath, therefore it must be properly set in order for it to construct a valid
+ * path. Additionally, this function will work only for files under 4GB.
+ * 
+ * TODO:
+ * 			We should assume a return value of 0 is assumed to be a failure.
+ */
+internal u32
+FetchResourceSize(char* RelativePath)
+{
+
+	char _absolute_path[MAX_PATH];
+
+	ConcatenateStrings_s(ApplicationState->BasePath, MAX_PATH, RelativePath,
+		StringSize(RelativePath), _absolute_path, MAX_PATH);
+
+	HANDLE _resource_handle = CreateFileA(RelativePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	assert(_resource_handle != INVALID_HANDLE_VALUE);
+
+	LARGE_INTEGER _file_size = {0};
+	BOOL FileSizeStatus = GetFileSizeEx(_resource_handle, &_file_size);
+
+	/**
+	 * We don't necessary expect the files to be over the 4GB limit, but if they are we certainly
+	 * should just assert in case they are. Generally speaking, we also expect that read succeeded.
+	 */
+#ifdef NINETAILSX_DEBUG
+	assert(FileSizeStatus);
+	assert(_file_size.QuadPart < 0xFFFFFFFF);
+#endif
+
+	CloseHandle(_resource_handle);
+
+	return _file_size.LowPart;
+
+}
+
+/**
+ * Fetches a file and stores the contents of the file into the buffer.
+ * This function looks at app_state for BasePath, therefore it must be
+ * properly set in order for it to construct a valid path. Additionally,
+ * this function will work only for files under 4GB.
+ * 
+ * TODO:
+ * 			We might want to report back to the engine that status of the
+ * 			operation. For now, we will just assert if the file hasn't
+ * 			been found or unable to be loaded.
+ */
+internal u32
+FetchResourceFile(char* RelativePath, void* Buffer, u32 BufferSize)
+{
+
+	char _absolute_path[MAX_PATH];
+
+	ConcatenateStrings_s(ApplicationState->BasePath, MAX_PATH, RelativePath,
+		StringSize(RelativePath), _absolute_path, MAX_PATH);
+
+	HANDLE _resource_handle = CreateFileA(RelativePath, GENERIC_READ, FILE_SHARE_READ,
+		NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	assert(_resource_handle != INVALID_HANDLE_VALUE);
+
+	DWORD BytesRead = 0;
+	BOOL ReadStatus = ReadFile(_resource_handle, Buffer, BufferSize, &BytesRead, 0);
+
+	assert(ReadStatus);
+	assert(BytesRead == BufferSize);
+
+	return 1; // We assume that the read succeeded.
+
+}
+
+
+/**
  * Defines the entry point for a win32 application.
  */
 i32 WINAPI
@@ -370,20 +443,23 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	memory_layout* GameMemoryLayout = &ApplicationState->MemoryLayout;
 
 	/**
-	 * We need to establish the root path of the executable which we use to search for all assets.
+	 * In order for us to do any file IO operations, we need to create a base path for which we can
+	 * navigate "relatively". We can do this by fetching the module name of the executable. From there,
+	 * we can pull out the root directory by finding the "last slash" and then stripping out the executable
+	 * name out of it. Then we store that in app_state for future use for path operations.
 	 * 
 	 * GetModuleFileNameA:
 	 * 			This will give us the path of the executable of the module.
 	 * 			https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamea
 	 */
+
+	// Retrieve module path.
 	char executablePath[MAX_PATH];
-	char basePath[MAX_PATH];
 	char modulePath[MAX_PATH];
 	char* moduleName = "NinetailsXEngine.dll";
 	GetModuleFileNameA(NULL, executablePath, MAX_PATH);
 
-	// We are looking for the last slash within the filepath to determine to root directory of the
-	// executable.
+	// Find location of last slash.
 	char* lastSlash = executablePath;
 	for (i32 offset = 0; executablePath[offset]; ++offset)
 	{
@@ -393,47 +469,23 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		}
 	}
 
-	/**
-	 * We should preserve base path in case we need to grab other files later.
-	 * 
-	 * NOTE:
-	 * 			This isn't the ideal method of copying strings since we are doing a direct
-	 * 			memcopy of the arrays, however this should be fine since both arrays are the
-	 * 			same size. We will eventually need to implement a way of handling this properly
-	 * 			later down the line.
-	 */
+	// Copy everything up to last slash then null-terminate the string to get root dir.
 	u32 BasePathCount = (u32)(lastSlash - executablePath);
-	nx_memcopy(basePath, executablePath, BasePathCount);
-	*(basePath + BasePathCount) = '\0';
-#if 0
-	nx_memcopy(modulePath, basePath, BasePathCount); 
-	nx_memcopy(modulePath+BasePathCount, moduleName, (u32)strlen(moduleName));
-	*(modulePath+BasePathCount+strlen(moduleName)) = '\0'; // Null terminate.
-#else
-	ConcatenateStrings_s(basePath, MAX_PATH, "NinetailsXEngine.dll", (u32)sizeof("NinetailsXEngine.dll"), modulePath, MAX_PATH);
-#endif
+	nx_memcopy(ApplicationState->BasePath, executablePath, BasePathCount);
+	*(ApplicationState->BasePath + BasePathCount) = '\0';
+
+	// We need to load the engine module into memory, so we will do that here by concat'ing the 
+	// relative directory string to the root path.
+	ConcatenateStrings_s(ApplicationState->BasePath, MAX_PATH, "NinetailsXEngine.dll", (u32)sizeof("NinetailsXEngine.dll"), modulePath, MAX_PATH);
 	InitializeNinetailsXEngine(modulePath, &ApplicationState->EngineLibrary);
 
 	/**
-	 * Here, we are loading the initial bitmap manually. We will use this as our initial
-	 * means for fetching files before abstracting it over to the engine.
+	 * Now testing the abstracted resource loading functions.
 	 */
-	char testBitmapPath[MAX_PATH];
-	ConcatenateStrings_s(basePath, MAX_PATH, "assets/horon_village_indoors.bmp",
-		(u32)sizeof("assets/horon_village_indoors.bmp"), testBitmapPath, MAX_PATH);
-	HANDLE BitmapFileHandle = CreateFileA(testBitmapPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 
-	LARGE_INTEGER testBitmapFileSize = {0};
-	BOOL FileSizeStatus = GetFileSizeEx(BitmapFileHandle, &testBitmapFileSize);
-	assert(FileSizeStatus);
-	assert(testBitmapFileSize.QuadPart < 0xFFFFFFFF);
-
-	// For testing purposes, we absolutely do *not* want to malloc on file read!
-	void* BitmapBuffer = malloc(testBitmapFileSize.QuadPart);
-	DWORD BytesRead = 0;
-	BOOL ReadStatus = ReadFile(BitmapFileHandle, BitmapBuffer, testBitmapFileSize.LowPart, &BytesRead, 0);
-	assert(ReadStatus);
-	assert(BytesRead == testBitmapFileSize.LowPart);
+	u32 BitmapFileSize = FetchResourceSize("./assets/horon_village_indoors.bmp");
+	void* BitmapBuffer = malloc(BitmapFileSize); // For testing purposes only.
+	FetchResourceFile("./assets/horon_village_indoors.bmp", BitmapBuffer, BitmapFileSize);
 
 	
 
