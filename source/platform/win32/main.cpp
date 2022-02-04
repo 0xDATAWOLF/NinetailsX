@@ -229,12 +229,6 @@ setInputButtonState(u8 keyCode, button* previousInputButton, button* currentInpu
 	}
 }
 
-internal void
-constructPathFromBase(char* base, u32 baseLength, char* relative, u32 relativeLength, char* dest, u32 destLength)
-{
-
-}
-
 /**
  * Defines the entry point for a win32 application.
  */
@@ -420,13 +414,29 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 #endif
 	InitializeNinetailsXEngine(modulePath, &ApplicationState->EngineLibrary);
 
-	//constructPathFromBase(basePath);
-
 	/**
 	 * Here, we are loading the initial bitmap manually. We will use this as our initial
 	 * means for fetching files before abstracting it over to the engine.
 	 */
-	//HANDLE BitmapFileHandle = CreateFileA("")
+	char testBitmapPath[MAX_PATH];
+	ConcatenateStrings_s(basePath, MAX_PATH, "assets/horon_village_indoors.bmp",
+		(u32)sizeof("assets/horon_village_indoors.bmp"), testBitmapPath, MAX_PATH);
+	HANDLE BitmapFileHandle = CreateFileA(testBitmapPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+
+	LARGE_INTEGER testBitmapFileSize = {0};
+	BOOL FileSizeStatus = GetFileSizeEx(BitmapFileHandle, &testBitmapFileSize);
+	assert(FileSizeStatus);
+	assert(testBitmapFileSize.QuadPart < 0xFFFFFFFF);
+
+	// For testing purposes, we absolutely do *not* want to malloc on file read!
+	void* BitmapBuffer = malloc(testBitmapFileSize.QuadPart);
+	DWORD BytesRead = 0;
+	BOOL ReadStatus = ReadFile(BitmapFileHandle, BitmapBuffer, testBitmapFileSize.LowPart, &BytesRead, 0);
+	assert(ReadStatus);
+	assert(BytesRead == testBitmapFileSize.LowPart);
+
+	
+
 
 	/**
 	 * We need to set up the input swap buffer. We need to manage the current input and the previous
