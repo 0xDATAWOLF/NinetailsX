@@ -1,1 +1,1 @@
-Remove-Item -Recurse -Force ./build
+Remove-Item ./build  -Recurse -Force 
