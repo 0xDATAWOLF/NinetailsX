@@ -19,6 +19,7 @@ typedef struct app_state
 	renderer Renderer;
 	action_interface InputHandle;
 	input InputSwapBuffer[2];
+	char BasePath[MAX_PATH];
 	u64 PerformanceFrequency;
 	HDC WindowDeviceContext;
 	b32 isRunnning;
