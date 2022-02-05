@@ -57,9 +57,13 @@ InitializeNinetailsXEngine(char* dynamicLibraryFilePath, engine_library* EngineL
 	 * 			Maybe we play nice and just yeet into a fail-fast state and exit. Maybe.
 	 */
 	EngineLibrary->EngineRuntime = (fnptr_engine_runtime*)GetProcAddress(EngineModule, "EngineRuntime");
+	EngineLibrary->EngineInit = (fnptr_engine_init*)GetProcAddress(EngineModule, "EngineInit");
+	EngineLibrary->EngineReinit = (fnptr_engine_reinit*)GetProcAddress(EngineModule, "EngineReinit");
 
 #ifdef NINETAILSX_DEBUG
 	assert(EngineLibrary->EngineRuntime != NULL);
+	assert(EngineLibrary->EngineInit != NULL);
+	assert(EngineLibrary->EngineReinit != NULL);
 #endif
 
 	return 1;
@@ -523,6 +527,15 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 #endif
 
 	/**
+	 * We need to perform engine initialization before we show the window. This will handle any window
+	 * updates if there are any.
+	 */
+	engine_library& EngineLib = ApplicationState->EngineLibrary;
+	EngineLib.EngineInit(GameMemoryLayout);
+
+
+
+	/**
 	 * Begin the application runtime loop given that we have sucessfully established and loaded all
 	 * the necessary facilities to reach this point. We will show the window at this point.
 	 */
@@ -588,7 +601,6 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * 			Define an enumeration outlining various reasons for closing, such as standard exits,
 		 * 			error exits, re-init exits, etc.
 		 */
-		engine_library& EngineLib = ApplicationState->EngineLibrary;
 		b32 EngineStatus = EngineLib.EngineRuntime(GameMemoryLayout, Renderer, &ApplicationState->InputHandle); 
 
 		// If the engine status returns non-zero status, it means we should close.

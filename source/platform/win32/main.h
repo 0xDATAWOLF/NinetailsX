@@ -9,6 +9,8 @@
 
 typedef struct engine_library
 {
+	fnptr_engine_init* EngineInit;
+	fnptr_engine_reinit* EngineReinit;
 	fnptr_engine_runtime* EngineRuntime;
 } engine_library;
 

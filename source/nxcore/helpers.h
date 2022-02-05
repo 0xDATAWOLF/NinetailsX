@@ -15,5 +15,6 @@
 
 #define ArraySize(arr) (sizeof(arr)/sizeof(arr[0]))
 
+#define NinetailsXAPI extern "C" __declspec(dllexport)
 
 #endif
