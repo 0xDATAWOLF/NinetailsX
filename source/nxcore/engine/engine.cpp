@@ -2,6 +2,8 @@
 #include <nxcore/memory.h>
 #include <nxcore/math.h>
 
+#include <windows.h>
+
 typedef struct engine_state
 {
 	btmonotonic_memory_arena EngineMemoryArena;
@@ -121,9 +123,36 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 
 }
 
+/**
+ * Engine initialization which occurs before the runtime of the engine. This handles
+ * all internal memory formatting, necessary resource loading, and other critical engine
+ * component initialization.
+ */
+NinetailsXAPI i32
+EngineInit(memory_layout* MemoryLayout)
+{
+	MessageBoxA(0, "This is from EngineInit", "DEBUG", MB_OK);
+	return 0;
+}
 
+/**
+ * The re-initialization method if the engine DLL is reloaded during run-time.
+ * Perform necessary re-initialization here.
+ * 
+ * NOTE:
+ * 			DLL reloading has not implemented, so this shouldn't really be
+ * 			used for anything yet.
+ */
+NinetailsXAPI i32
+EngineReinit(memory_layout* MemoryLayout)
+{
+	return 0;	
+}
 
-extern "C" __declspec(dllexport) i32
+/**
+ * The frame-runtime of the engine.
+ */
+NinetailsXAPI i32
 EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface* InputHandle)
 {
 
