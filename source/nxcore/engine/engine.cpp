@@ -63,10 +63,10 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 
 	// What about over-bounds y? Well, same deal. First, we see if the y+height is large than
 	// the height of the bitmap region then we shrink it to fit.
-	else if (y+RectHeight >= Renderer->Height)
+	else if (y+RectHeight >= Renderer->WindowDimensions.height)
 	{
 		// Now we know that the rect is out of bounds, but how out of bounds is it?
-		i32 Overbounds = (y+RectHeight) - Renderer->Height;
+		i32 Overbounds = (y+RectHeight) - Renderer->WindowDimensions.height;
 		if (Overbounds >= RectWidth) return; // No point in drawing if it's completely out of bounds!
 
 		// Now shrink the rectange by the overbounds.
@@ -90,9 +90,9 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 	/**
 	 * In the case that the rect is out of the right bounds, we can just shrink the x.
 	 */
-	if (x+RectWidth >= Renderer->Width)
+	if (x+RectWidth >= Renderer->WindowDimensions.width)
 	{
-		i32 Overbounds = (x+RectWidth) - Renderer->Width;
+		i32 Overbounds = (x+RectWidth) - Renderer->WindowDimensions.width;
 		if (Overbounds >= RectWidth) return; // If it's not even within bounds, exit.
 
 		// Shrink.
@@ -105,7 +105,7 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 	 * This will place us on the correct row. Then we just need to navigate to the right
 	 * based on the x location and that will place at the exact starting location.
 	 */
-	u32* Loc = (u32*)Renderer->Image + (Renderer->Width*RectY) + RectX;
+	u32* Loc = (u32*)Renderer->Image + (Renderer->WindowDimensions.width*RectY) + RectX;
 	for (i32 Row = 0; Row < RectHeight; ++Row)
 	{
 		/**
@@ -113,7 +113,7 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 		 * by the width of the buffer, we guaranteed to hit the next starting position
 		 * one row down.
 		 */
-		u32* Pitch = Loc + (Row*Renderer->Width);
+		u32* Pitch = Loc + (Row*Renderer->WindowDimensions.width);
 		for (i32 Col = 0; Col < RectWidth; ++Col)
 		{
 			u32* Pixel = Pitch + Col;
@@ -129,9 +129,9 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
  * component initialization.
  */
 NinetailsXAPI i32
-EngineInit(memory_layout* MemoryLayout)
+EngineInit(memory_layout* MemoryLayout, renderer* Renderer)
 {
-	MessageBoxA(0, "This is from EngineInit", "DEBUG", MB_OK);
+	Renderer->WindowDimensions = { 160, 144 };
 	return 0;
 }
 
@@ -144,7 +144,7 @@ EngineInit(memory_layout* MemoryLayout)
  * 			used for anything yet.
  */
 NinetailsXAPI i32
-EngineReinit(memory_layout* MemoryLayout)
+EngineReinit(memory_layout* MemoryLayout, renderer* Renderer)
 {
 	return 0;	
 }
@@ -181,15 +181,6 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 		u32 EngineHeapSize = (u32)(MemoryLayout->Size - sizeof(engine_state));
 		EngineState->EngineMemoryArena = CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
 
-
-		/**
-		 * We are going to emulate the NES screen resolution, 256x240. To do this, we are going to
-		 * resize the renderer to the appropriate resolution and then grab an area on the heap required
-		 * to fill that buffer.
-		 */
-		Renderer->Width = 160;
-		Renderer->Height = 144;
-
 	}
 	
 	/**
@@ -206,10 +197,10 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 	 * and the bits-per-pixel (32bits, XRGB).
 	 */
 	Renderer->Image = BTMonotonicArenaPushTopSize(&EngineState->EngineMemoryArena,
-		Renderer->Width*Renderer->Height*sizeof(u32));
+		Renderer->WindowDimensions.width*Renderer->WindowDimensions.height*sizeof(u32));
 
 	// We will now fill the screen with a debug color: red!
-	for (u32 pIndex = 0; pIndex < (u32)Renderer->Width*(u32)Renderer->Height; ++pIndex)
+	for (u32 pIndex = 0; pIndex < (u32)Renderer->WindowDimensions.width*(u32)Renderer->WindowDimensions.height; ++pIndex)
 	{
 		u32* Pixel = (u32*)Renderer->Image + pIndex;
 		*Pixel = 0x00FF0000;

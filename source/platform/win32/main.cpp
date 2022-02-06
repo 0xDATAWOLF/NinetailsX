@@ -16,6 +16,7 @@
  */
 
 #include "main.h"
+#include "display.h"
 #include <nxcore/string.h>
 #include <stdio.h>
 
@@ -319,6 +320,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 */
 	app_state _appState = {0};
 	ApplicationState = &_appState;
+	renderer* Renderer = &ApplicationState->Renderer;
 
 	/**
 	 * Create & fill out the WNDCLASS struct.
@@ -377,18 +379,13 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 
 #define INIT_WINDOW_WIDTH 1280
 #define INIT_WINDOW_HEIGHT 720
-	RECT WindowFromClientSize = {0, 0, INIT_WINDOW_WIDTH, INIT_WINDOW_HEIGHT};
-	AdjustWindowRect(&WindowFromClientSize, WS_CAPTION, FALSE);
-	i32 WindowWidth = WindowFromClientSize.right-WindowFromClientSize.left;
-	i32 WindowHeight = WindowFromClientSize.bottom-WindowFromClientSize.top;
+	v2i InitWindowDimensions = CalculateWindowSize({INIT_WINDOW_WIDTH, INIT_WINDOW_HEIGHT});
 
 	HWND WindowHandle = CreateWindowExA(0, "NinetailsX", "NinetailsX Engine",
-		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, WindowWidth, WindowHeight, NULL,
+		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, InitWindowDimensions.width, InitWindowDimensions.height, NULL,
 		NULL, hInstance, NULL);
 
-	renderer* Renderer = &ApplicationState->Renderer;
-	Renderer->Width = WindowWidth;
-	Renderer->Height = WindowHeight;
+	Renderer->WindowDimensions = InitWindowDimensions;
 
 	/** 
 	 * NOTE:
@@ -531,8 +528,11 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 * updates if there are any.
 	 */
 	engine_library& EngineLib = ApplicationState->EngineLibrary;
-	EngineLib.EngineInit(GameMemoryLayout);
+	EngineLib.EngineInit(GameMemoryLayout, Renderer);
 
+	// The initialization process may request updated window dimensions. We need to respond to that.
+	if (Renderer->WindowDimensions != InitWindowDimensions)
+		SetWindowClientSize(WindowHandle, Renderer->WindowDimensions);
 
 
 	/**
@@ -610,19 +610,8 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		}
 
 		// The engine may request the window be resized the accomodate the size of the render area.
-		RECT CurrentWindowRect = {0};
-		GetClientRect(WindowHandle, &CurrentWindowRect);
-		i32 CurrentWindowWidth = CurrentWindowRect.right - CurrentWindowRect.left;
-		i32 CurrentWindowHeight = CurrentWindowRect.bottom - CurrentWindowRect.top;
-		if ((CurrentWindowWidth != Renderer->Width) || (CurrentWindowHeight != Renderer->Height))
-		{
-			RECT NewWindowRect = {0, 0, Renderer->Width, Renderer->Height};
-			AdjustWindowRect(&NewWindowRect, WS_CAPTION, FALSE);
-			i32 NewWindowWidth = NewWindowRect.right - NewWindowRect.left;
-			i32 NewWindowHeight = NewWindowRect.bottom - NewWindowRect.top;
-			SetWindowPos(WindowHandle, NULL, NULL, NULL,
-				NewWindowWidth, NewWindowHeight, SWP_NOMOVE|SWP_NOZORDER);
-		}
+		if (GetWindowClientSize(WindowHandle) != Renderer->WindowDimensions)
+			SetWindowClientSize(WindowHandle, Renderer->WindowDimensions);
 
 		/**
 		 * Now that the frame is completed, we can swap the input buffers for the next frame.
@@ -681,9 +670,9 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 
 		/**
 		 * We are rendering the bitmap to the screen using a "software" implementation--that is, we're
-		 * just drawing straight to the Window using Window's bitmap drawing method. This 
+		 * just drawing straight to the Window using Window's bitmap drawing method.
 		 */
-		RenderSoftwareBitmap(ApplicationState, Renderer->Image, Renderer->Width, Renderer->Height);
+		RenderSoftwareBitmap(ApplicationState, Renderer->Image, Renderer->WindowDimensions.width, Renderer->WindowDimensions.height);
 
 		/**
 		 * We will now reset everything for the next frame.
