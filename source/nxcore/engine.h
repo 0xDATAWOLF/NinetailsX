@@ -1,6 +1,7 @@
 #ifndef NINETAILSX_GAME_H
 #define NINETAILSX_GAME_H
 #include <nxcore/primitives.h>
+#include <nxcore/math.h>
 #include <nxcore/input.h>
 
 /**
@@ -14,8 +15,7 @@
  */
 typedef struct renderer
 {
-	i32 Width;
-	i32 Height;
+	v2i WindowDimensions;
 	void* Image;
 } renderer;
 
@@ -34,8 +34,8 @@ typedef u32 fnptr_platform_fetch_res_file(char* RelativePath, void* Buffer, u32 
 typedef u32 fnptr_platform_fetch_res_size(char* RelativePath);
 
 /** Engine -> Platform */
-typedef i32 fnptr_engine_init(memory_layout* MemoryLayout);
-typedef i32 fnptr_engine_reinit(memory_layout* MemoryLayout);
+typedef i32 fnptr_engine_init(memory_layout* MemoryLayout, renderer* Renderer);
+typedef i32 fnptr_engine_reinit(memory_layout* MemoryLayout, renderer* Renderer);
 typedef i32 fnptr_engine_runtime(memory_layout* MemoryLayout, renderer* Renderer, action_interface* InputHandle);
 
 #endif
