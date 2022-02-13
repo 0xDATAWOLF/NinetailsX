@@ -1,23 +1,16 @@
 #include <nxcore/engine.h>
-#include <nxcore/memory.h>
 #include <nxcore/math.h>
+#include <nxcore/resources.h>
 
-#include <windows.h>
-
-typedef struct engine_state
-{
-	btmonotonic_memory_arena EngineMemoryArena;
-	b32 Initialized;
-
-	i32 x, y;
-	b32 mov_flip;
-
-} engine_state;
+/**
+ * Globals defines all engine globals.
+ */
+#include "globals.h"
 
 /**
  * TODO:
  * 			I'd like to learn how to draw an arbitrary line based on two coordinates.
- * 			This is a good place to start as it is fast and somewhat simple to do.
+ * 			This is a good place to start as it is fast and somewhat simple to do:
  * 	
  * Bresenham's Line Algorithm
  * 			https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
@@ -124,18 +117,6 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 }
 
 /**
- * Engine initialization which occurs before the runtime of the engine. This handles
- * all internal memory formatting, necessary resource loading, and other critical engine
- * component initialization.
- */
-NinetailsXAPI i32
-EngineInit(memory_layout* MemoryLayout, renderer* Renderer)
-{
-	Renderer->WindowDimensions = { 160, 144 };
-	return 0;
-}
-
-/**
  * The re-initialization method if the engine DLL is reloaded during run-time.
  * Perform necessary re-initialization here.
  * 
@@ -144,9 +125,60 @@ EngineInit(memory_layout* MemoryLayout, renderer* Renderer)
  * 			used for anything yet.
  */
 NinetailsXAPI i32
-EngineReinit(memory_layout* MemoryLayout, renderer* Renderer)
+EngineReinit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interface* ResourceHandler)
 {
+
+	// Store the renderer and memory_layout into globals.
+	EngineMemoryLayout = MemoryLayout;
+	EngineRenderer = Renderer;
+
+	// Initialized resource handler functions as well.
+	FetchResourceFile = ResourceHandler->FetchResourceFile;
+	FetchResourceSize = ResourceHandler->FetchResourceSize;
+
+	// Cast the MemoryLayout to engine_state which contains the engine's persistent state.
+	// When the DLL reloads, this is how we persist the state.
+	EngineState = (engine_state*)MemoryLayout->Base;
+
 	return 0;	
+}
+
+
+/**
+ * Engine initialization which occurs before the runtime of the engine. This handles
+ * all internal memory formatting, necessary resource loading, and other critical engine
+ * component initialization.
+ */
+NinetailsXAPI i32
+EngineInit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interface* ResourceHandler)
+{
+
+	// We call EngineReinit here because it will set all the engine globals to the correct state.
+	EngineReinit(MemoryLayout, Renderer, ResourceHandler);
+
+	// Initialize window dimensions on start up.
+	EngineRenderer->WindowDimensions = { 160, 144 };
+
+	/**
+	 * We need to initialize the engine_state since EngineInit is called before the runtime performs
+	 * any actions. EngineReinit will reliably be called at any time during the runtime, so we need
+	 * to ensure that everything is correctly initialized here such that the state persists.
+	 */
+	EngineState->Initialized = true;
+	void* EngineHeapBasePointer = (void*)((u8*)MemoryLayout->Base + sizeof(engine_state));
+	u32 EngineHeapSize = (u32)(MemoryLayout->Size - sizeof(engine_state));
+	EngineState->EngineMemoryArena = CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
+
+	/**
+	 * Here, we are testing the resource fetching functions and bitmap stuff.
+	 */
+	u32 BitmapFileSize = FetchResourceSize("./assets/horon_village_indoors.bmp");
+	void* BitmapBuffer = BTMonotonicArenaPushTopSize(&EngineState->EngineMemoryArena, BitmapFileSize);
+	FetchResourceFile("./assets/horon_village_indoors.bmp", BitmapBuffer, BitmapFileSize); // Fetches the file.
+
+	bitmap_section* BitmapSection = GetDIBitmapHeaders(BitmapBuffer); // Properly loads with 32-bit color index, DIB-V5.
+
+	return 0;
 }
 
 /**
@@ -156,33 +188,6 @@ NinetailsXAPI i32
 EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface* InputHandle)
 {
 
-	/**
-	 * Performing necessary start-up initialization. We may want to pull this out to its
-	 * own function rather than what we are doing here. For now, this works.
-	 * 
-	 * NOTE:
-	 * 			Engine initialization gathers the state from the heap pointer provided by
-	 * 			MemoryLayout--we are casting it to engine_state. Therefore, if we want to use
-	 * 			the heap, we need to bump the heap pointer up by sizeof(engine_state) to get
-	 * 			starting point of the heap memory and the subtract the size of the heap by
-	 * 			the size of the engine_state to get the actual remaining size.
-	 */
-	engine_state* EngineState =	(engine_state*)MemoryLayout->Base;
-	if (EngineState->Initialized == NULL)
-	{
-		EngineState->Initialized = true;
-
-		/**
-		 * We will need to set up the memory layout. Since the engine state shares to head of
-		 * memory layout, we need to subtract that from the total size and offset the base pointer
-		 * accordingly.
-		 */
-		void* EngineHeapBasePointer = (void*)((u8*)MemoryLayout->Base + sizeof(engine_state));
-		u32 EngineHeapSize = (u32)(MemoryLayout->Size - sizeof(engine_state));
-		EngineState->EngineMemoryArena = CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
-
-	}
-	
 	/**
 	 * NOTE:
 	 * 			We are using the top of our memory allocator as our frame allocator.

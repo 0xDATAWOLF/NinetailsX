@@ -16,6 +16,7 @@ typedef struct engine_library
 
 typedef struct app_state
 {
+	res_handler_interface ResourceHandlerInterface;
 	engine_library EngineLibrary;
 	memory_layout MemoryLayout;
 	renderer Renderer;

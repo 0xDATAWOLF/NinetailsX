@@ -2,17 +2,18 @@
  * 
  * The big-bad todo list & bug-fix list!
  * 
- * TODO:			Engine layer initialization
- * 			We need a way of initializing the engine before opening the window so we know what size it
- * 			is expecting before actually opening. The first frame will always be the default window size
- * 			before the engine forces it to the size it wants.
- * 
  * TESTING:			Memory functions (memset/memcopy)
  * 			I actually haven't tested these functions to determine if they're working the way they're
  * 			designed. I'm assuming that they work because I implemented them in a very similar way in
  * 			the past that I know to work, but you never know unless I do proper debugging. For now,
  * 			it doesn't seem to cause any segment faults (since the bitmap buffer is used on the tail
  * 			end of the heap allocation, any over-runs would cause a seg-fault).
+ * 
+ * BUGFIX:			Frame timing
+ * 			There is most certainly a bug with the frame timing and sleep protocol which will need to
+ * 			be ironed out and refactored soon enough. While the application itself seems to work as
+ * 			intended, residual framesync issues persist until timing falls back in line. Whether or
+ * 			not that's the actual case or not is yet to be determined.
  */
 
 #include "main.h"
@@ -318,7 +319,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 * We must guarantee the existence of ApplicationState on startup. Here, we will initialize it
 	 * and set the variable as declared in main.h.
 	 */
-	app_state _appState = {0};
+	app_state _appState;
 	ApplicationState = &_appState;
 	renderer* Renderer = &ApplicationState->Renderer;
 
@@ -379,7 +380,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 
 #define INIT_WINDOW_WIDTH 1280
 #define INIT_WINDOW_HEIGHT 720
-	v2i InitWindowDimensions = CalculateWindowSize({INIT_WINDOW_WIDTH, INIT_WINDOW_HEIGHT});
+	v2i InitWindowDimensions = CalculateWindowSizeFromClientSize({INIT_WINDOW_WIDTH, INIT_WINDOW_HEIGHT});
 
 	HWND WindowHandle = CreateWindowExA(0, "NinetailsX", "NinetailsX Engine",
 		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, InitWindowDimensions.width, InitWindowDimensions.height, NULL,
@@ -481,14 +482,11 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	InitializeNinetailsXEngine(modulePath, &ApplicationState->EngineLibrary);
 
 	/**
-	 * Now testing the abstracted resource loading functions.
+	 * We need to initialize the resource handler functions for the engine to call.
 	 */
 
-	u32 BitmapFileSize = FetchResourceSize("./assets/horon_village_indoors.bmp");
-	void* BitmapBuffer = malloc(BitmapFileSize); // For testing purposes only.
-	FetchResourceFile("./assets/horon_village_indoors.bmp", BitmapBuffer, BitmapFileSize);
-
-	
+	ApplicationState->ResourceHandlerInterface.FetchResourceFile = &FetchResourceFile;
+	ApplicationState->ResourceHandlerInterface.FetchResourceSize = &FetchResourceSize;
 
 
 	/**
@@ -525,13 +523,13 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 
 	/**
 	 * We need to perform engine initialization before we show the window. This will handle any window
-	 * updates if there are any.
+	 * updates if there are any. We also need to handle any window sizing requests here as well. Once
+	 * the init finishes up, we can begin showing the window and initiated the engine runtime.
 	 */
 	engine_library& EngineLib = ApplicationState->EngineLibrary;
-	EngineLib.EngineInit(GameMemoryLayout, Renderer);
+	EngineLib.EngineInit(GameMemoryLayout, Renderer, &ApplicationState->ResourceHandlerInterface);
 
-	// The initialization process may request updated window dimensions. We need to respond to that.
-	if (Renderer->WindowDimensions != InitWindowDimensions)
+	if (GetWindowClientSize(WindowHandle) != Renderer->WindowDimensions)
 		SetWindowClientSize(WindowHandle, Renderer->WindowDimensions);
 
 
