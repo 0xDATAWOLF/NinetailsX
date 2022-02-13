@@ -1,18 +1,11 @@
 #include <nxcore/engine.h>
-#include <nxcore/memory.h>
 #include <nxcore/math.h>
+#include <nxcore/resources.h>
 
-#include <windows.h>
-
-typedef struct engine_state
-{
-	btmonotonic_memory_arena EngineMemoryArena;
-	b32 Initialized;
-
-	i32 x, y;
-	b32 mov_flip;
-
-} engine_state;
+/**
+ * Globals defines all engine globals.
+ */
+#include "globals.h"
 
 /**
  * TODO:
@@ -129,9 +122,31 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
  * component initialization.
  */
 NinetailsXAPI i32
-EngineInit(memory_layout* MemoryLayout, renderer* Renderer)
+EngineInit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interface* ResourceHandler)
 {
+
+	// Store the renderer and memory_layout into globals.
+	EngineMemoryLayout = MemoryLayout;
+	EngineRenderer = Renderer;
+
+	// Initialized resource handler functions as well.
+	FetchResourceFile = ResourceHandler->FetchResourceFile;
+	FetchResourceSize = ResourceHandler->FetchResourceSize;
+
+	// Initialize window dimensions on start up.
 	Renderer->WindowDimensions = { 160, 144 };
+
+	/**
+	 * We need to initialize the engine_state. We can type-cast the base pointer within MemoryLayout
+	 * to get this. This will persist upon DLL reloads. We can then format the Bottom-Top Memory
+	 * Arena taking the size of the engine_state struct in mind.
+	 */
+	EngineState = (engine_state*)MemoryLayout->Base;
+	EngineState->Initialized = true;
+	void* EngineHeapBasePointer = (void*)((u8*)MemoryLayout->Base + sizeof(engine_state));
+	u32 EngineHeapSize = (u32)(MemoryLayout->Size - sizeof(engine_state));
+	EngineState->EngineMemoryArena = CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
+
 	return 0;
 }
 
@@ -144,7 +159,7 @@ EngineInit(memory_layout* MemoryLayout, renderer* Renderer)
  * 			used for anything yet.
  */
 NinetailsXAPI i32
-EngineReinit(memory_layout* MemoryLayout, renderer* Renderer)
+EngineReinit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interface* ResourceHandler)
 {
 	return 0;	
 }
@@ -156,33 +171,6 @@ NinetailsXAPI i32
 EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface* InputHandle)
 {
 
-	/**
-	 * Performing necessary start-up initialization. We may want to pull this out to its
-	 * own function rather than what we are doing here. For now, this works.
-	 * 
-	 * NOTE:
-	 * 			Engine initialization gathers the state from the heap pointer provided by
-	 * 			MemoryLayout--we are casting it to engine_state. Therefore, if we want to use
-	 * 			the heap, we need to bump the heap pointer up by sizeof(engine_state) to get
-	 * 			starting point of the heap memory and the subtract the size of the heap by
-	 * 			the size of the engine_state to get the actual remaining size.
-	 */
-	engine_state* EngineState =	(engine_state*)MemoryLayout->Base;
-	if (EngineState->Initialized == NULL)
-	{
-		EngineState->Initialized = true;
-
-		/**
-		 * We will need to set up the memory layout. Since the engine state shares to head of
-		 * memory layout, we need to subtract that from the total size and offset the base pointer
-		 * accordingly.
-		 */
-		void* EngineHeapBasePointer = (void*)((u8*)MemoryLayout->Base + sizeof(engine_state));
-		u32 EngineHeapSize = (u32)(MemoryLayout->Size - sizeof(engine_state));
-		EngineState->EngineMemoryArena = CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
-
-	}
-	
 	/**
 	 * NOTE:
 	 * 			We are using the top of our memory allocator as our frame allocator.

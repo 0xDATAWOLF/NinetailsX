@@ -26,9 +26,9 @@ GetWindowClientSize(HWND WindowHandle)
  * The default window styling option creates a frame with standard window controls and no menu.
  */
 inline v2i
-CalculateWindowSize(v2i WindowSize, DWORD WindowStyling = WS_CAPTION)
+CalculateWindowSizeFromClientSize(v2i ClientAreaSize, DWORD WindowStyling = WS_CAPTION)
 {
-	RECT NewWindowRect = {0, 0, WindowSize.width, WindowSize.height};
+	RECT NewWindowRect = {0, 0, ClientAreaSize.width, ClientAreaSize.height};
 	AdjustWindowRect(&NewWindowRect, WindowStyling, FALSE);
 	i32 NewWindowWidth = NewWindowRect.right - NewWindowRect.left;
 	i32 NewWindowHeight = NewWindowRect.bottom - NewWindowRect.top;
@@ -44,7 +44,7 @@ CalculateWindowSize(v2i WindowSize, DWORD WindowStyling = WS_CAPTION)
 internal void
 SetWindowClientSize(HWND WindowHandle, v2i WindowSize)
 {
-	v2i TrueWindowSize = CalculateWindowSize(WindowSize);
+	v2i TrueWindowSize = CalculateWindowSizeFromClientSize(WindowSize);
 	SetWindowPos(WindowHandle, NULL, NULL, NULL,
 		TrueWindowSize.width, TrueWindowSize.height, SWP_NOMOVE|SWP_NOZORDER);
 }
