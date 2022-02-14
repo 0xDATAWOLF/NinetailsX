@@ -1,6 +1,7 @@
 #include <nxcore/engine.h>
 #include <nxcore/math.h>
 #include <nxcore/resources.h>
+#include <nxcore/renderer/colors.h>
 
 /**
  * Globals defines all engine globals.
@@ -204,40 +205,18 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 	Renderer->Image = BTMonotonicArenaPushTopSize(&EngineState->EngineMemoryArena,
 		Renderer->WindowDimensions.width*Renderer->WindowDimensions.height*sizeof(u32));
 
+#if 0
 	// We will now fill the screen with a debug color: red!
 	for (u32 pIndex = 0; pIndex < (u32)Renderer->WindowDimensions.width*(u32)Renderer->WindowDimensions.height; ++pIndex)
 	{
 		u32* Pixel = (u32*)Renderer->Image + pIndex;
 		*Pixel = 0x00FF0000;
 	}
+#else
+	DrawRect(EngineRenderer, 0, 0, EngineRenderer->WindowDimensions.width,
+		EngineRenderer->WindowDimensions.height, CreateDIBPixel(1.0f, 1.0f, 0.0f, 0.0f));
+#endif
 
-	/**
-	 * In order to test the frameStep, we're going to update out x-pos by a fixed time to see
-	 * a simple animation of movement. Here, we also test input.
-	 */
-
-	if (EngineState->x == -50) EngineState->mov_flip = 1;
-	else if (EngineState->x == 120) EngineState->mov_flip = 0;
-	if (EngineState->mov_flip == 1)
-	{
-		EngineState->x++;
-	}
-	else
-	{
-		EngineState->x--;
-	}
-
-	if (InputHandle->frame_input->aButton.down)
-	{
-		EngineState->y++;
-	}
-
-	if (InputHandle->frame_input->bButton.down)
-	{
-		EngineState->y--;
-	}
-
-	DrawRect(Renderer, EngineState->x, EngineState->y, 100, 100, 0x00FFFFFF);
 
 	/**
 	 * NOTE:
