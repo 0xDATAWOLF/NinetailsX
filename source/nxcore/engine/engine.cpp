@@ -146,11 +146,9 @@ DrawBitmap(renderer* Renderer, void* bitmap, i32 x, i32 y, i32 bitmapWidth, i32 
 	if (!IsWithinBitmapBounds(Renderer->WindowDimensions.width, Renderer->WindowDimensions.height,
 		x, y, bitmapWidth, bitmapHeight)) return;
 
-	// Set up the dest and source bitmap pointers.
-	u32* destBitmap = (u32*)Renderer->Image + ((Renderer->WindowDimensions.width*y) + x);
-	u32* sourceBitmap = (u32*)bitmap;
 
 	// We need to preserve parameter values.
+	u32* sourceBitmap = (u32*)bitmap;
 	i32 sourceWidth = bitmapWidth;
 	i32 sourceHeight = bitmapHeight;
 	
@@ -187,7 +185,8 @@ DrawBitmap(renderer* Renderer, void* bitmap, i32 x, i32 y, i32 bitmapWidth, i32 
 	}
 
 	// Now we can copy to the buffer.
-	for (i32 row = 0; row <= bitmapHeight; ++row)
+	u32* destBitmap = (u32*)Renderer->Image + ((Renderer->WindowDimensions.width*y) + x);
+	for (i32 row = 0; row < sourceHeight; ++row)
 	{
 		u32* destPitch = destBitmap + (row*Renderer->WindowDimensions.width);
 		u32* sourcePitch = sourceBitmap + (row*bitmapWidth);
@@ -256,10 +255,10 @@ EngineInit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interfac
 	 * Here, we are testing the resource fetching functions and bitmap stuff.
 	 */
 	u32 BitmapFileSize = FetchResourceSize("./assets/test.bmp");
-	void* BitmapBuffer = BTMonotonicArenaPushTopSize(&EngineState->EngineMemoryArena, BitmapFileSize);
-	FetchResourceFile("./assets/test.bmp", BitmapBuffer, BitmapFileSize); // Fetches the file.
+	EngineState->testbitmap_res = BTMonotonicArenaPushBottomSize(&EngineState->EngineMemoryArena, BitmapFileSize);
+	FetchResourceFile("./assets/test.bmp", EngineState->testbitmap_res, BitmapFileSize); // Fetches the file.
 
-	bitmap_section* BitmapSection = GetDIBitmapHeaders(BitmapBuffer); // Properly loads with 32-bit color index, DIB-V5.
+	EngineState->testbitmap = GetBitmapFromResource(EngineState->testbitmap_res);
 
 	return 0;
 }
@@ -293,6 +292,12 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 	DrawRect(EngineRenderer, 0, 0, EngineRenderer->WindowDimensions.width,
 		EngineRenderer->WindowDimensions.height, CreateDIBPixel(1.0f, 1.0f, 0.0f, 0.0f));
 
+	/**
+	 * Drawing the test bitmap!
+	 */
+	DrawBitmap(EngineRenderer, EngineState->testbitmap.buffer,
+		0, 0,
+		EngineState->testbitmap.dims.width, EngineState->testbitmap.dims.height);
 
 	/**
 	 * NOTE:

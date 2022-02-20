@@ -4,6 +4,7 @@
 #include <nxcore/memory.h>
 #include <nxcore/math.h>
 #include <nxcore/input.h>
+#include <nxcore/resources.h>
 
 typedef u32 fnptr_platform_fetch_res_file(char* RelativePath, void* Buffer, u32 BuffSize);
 typedef u32 fnptr_platform_fetch_res_size(char* RelativePath);
@@ -50,6 +51,10 @@ typedef struct engine_state
 
 	i32 x, y;
 	b32 mov_flip;
+
+	// State for the testbitmap.
+	void* testbitmap_res;
+	dibitmap testbitmap;
 
 } engine_state;
 

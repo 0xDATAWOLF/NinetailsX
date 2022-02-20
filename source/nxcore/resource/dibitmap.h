@@ -18,15 +18,15 @@ typedef struct bitmap_file_header
 	u32 fileSize;
 	u32 _reserved;
 	u32 dataOffset;
-} bitmap_header;
+} bitmap_file_header;
 
 typedef struct bitmap_color_space_endpoints
 {
-	u8 colorSpaceEndpoints[36]; // 36 bytes matches spec'.
+	u8 colorSpaceEndpoints[36]; // 36 bytes matches spec.
 } bitmap_color_space_endpoints;
 
 /**
- * Bitmap Info Header Version 5 is a widely accepted standard.
+ * Bitmap Info Header Version 5 info header struct specification.
  */
 typedef struct bitmap_info_header_v5
 {
@@ -58,12 +58,37 @@ typedef struct bitmap_info_header_v5
 /**
  * The bitmap section describes a bitmap file.
  */
-typedef struct bitmap_section
+typedef struct bitmap_header
 {
 	bitmap_file_header fileHeader;
 	bitmap_info_header_v5 infoHeader;
-} bitmap_section;
+} bitmap_header;
 
 #pragma pack(pop)
+
+
+/**
+ * Describes a device-independent bitmap.
+ */
+typedef struct dibitmap
+{
+	bitmap_header* header;
+	void* buffer;
+	v2i dims; // Quick access to the dimensions of a bitmap.
+} dibitmap;
+
+/**
+ * Returns a dibitmap struct containing the details of bitmap. The resource parameter
+ * is the raw data pulled from the file.
+ */
+inline dibitmap
+GetBitmapFromResource(void* resource)
+{
+	dibitmap _bitmap = {};
+	_bitmap.header = (bitmap_header*)resource;
+	_bitmap.buffer = (u8*)resource + _bitmap.header->fileHeader.dataOffset;
+	_bitmap.dims = {(i32)_bitmap.header->infoHeader.width, (i32)_bitmap.header->infoHeader.height};
+	return _bitmap;
+}
 
 #endif
