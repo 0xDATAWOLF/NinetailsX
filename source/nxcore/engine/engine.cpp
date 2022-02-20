@@ -118,6 +118,88 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 }
 
 /**
+ * Determines if one bitmap exists within the boundary of another bitmap with the origin
+ * placed at the left-lower corner.
+ */
+inline b32
+IsWithinBitmapBounds(i32 parentWidth, i32 parentHeight, i32 x, i32 y, i32 subWidth, i32 subHeight)
+{
+	b32 _within_bounds = true;
+
+	if (x+subWidth < 0) _within_bounds = false;
+	if (x >= parentWidth) _within_bounds = false;
+	if (y+subHeight < 0) _within_bounds = false;
+	if (y >= parentHeight) _within_bounds = false;
+
+	return _within_bounds;
+}
+
+/**
+ * Draws a bitmap to the screen at a given position. The bitmapWidth and bitmapHeight *must*
+ * be the exact size of the bitmap as it is required for proper pitch calculations.
+ */
+internal void
+DrawBitmap(renderer* Renderer, void* bitmap, i32 x, i32 y, i32 bitmapWidth, i32 bitmapHeight)
+{
+
+	// Check within bounds, exit if it isn't.
+	if (!IsWithinBitmapBounds(Renderer->WindowDimensions.width, Renderer->WindowDimensions.height,
+		x, y, bitmapWidth, bitmapHeight)) return;
+
+	// Set up the dest and source bitmap pointers.
+	u32* destBitmap = (u32*)Renderer->Image + ((Renderer->WindowDimensions.width*y) + x);
+	u32* sourceBitmap = (u32*)bitmap;
+
+	// We need to preserve parameter values.
+	i32 sourceWidth = bitmapWidth;
+	i32 sourceHeight = bitmapHeight;
+	
+	// If we are slightly out of bounds, we need to clip the source and offset the source bitmap.
+	if (x < 0)
+	{
+		i32 offsetX = absolute_i32(x);
+		sourceWidth -= offsetX;
+		sourceBitmap += offsetX; // Offsetting forward
+		x = 0; // Placing back in bounds
+	}
+
+	// We do not need to offset the source bitmap, but we do need to shrink the width to fit
+	// against the right edge.
+	else if (x+sourceWidth >= Renderer->WindowDimensions.width)
+	{
+		sourceWidth -= ((x+sourceWidth) - Renderer->WindowDimensions.width);
+	}
+
+	// Applying what we did to the x-coordinates with they y-coordinates above, except now we need
+	// to jump down rows.
+	if (y < 0)
+	{
+		i32 offsetY = absolute_i32(y);
+		sourceHeight -= offsetY;
+		sourceBitmap += (bitmapWidth * offsetY); // Offsetting down y-rows
+		y = 0; // Placing back in bounds
+	}
+
+	// Shrink to fit at y.
+	else if (y+sourceHeight >= Renderer->WindowDimensions.height)
+	{
+		sourceHeight -= ((y+sourceHeight) - Renderer->WindowDimensions.height);
+	}
+
+	// Now we can copy to the buffer.
+	for (i32 row = 0; row <= bitmapHeight; ++row)
+	{
+		u32* destPitch = destBitmap + (row*Renderer->WindowDimensions.width);
+		u32* sourcePitch = sourceBitmap + (row*bitmapWidth);
+		for (i32 col = 0; col < sourceWidth; ++col)
+		{
+			*destPitch++ = *sourcePitch++;
+		}
+	}
+
+}
+
+/**
  * The re-initialization method if the engine DLL is reloaded during run-time.
  * Perform necessary re-initialization here.
  * 
@@ -173,9 +255,9 @@ EngineInit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interfac
 	/**
 	 * Here, we are testing the resource fetching functions and bitmap stuff.
 	 */
-	u32 BitmapFileSize = FetchResourceSize("./assets/horon_village_indoors.bmp");
+	u32 BitmapFileSize = FetchResourceSize("./assets/test.bmp");
 	void* BitmapBuffer = BTMonotonicArenaPushTopSize(&EngineState->EngineMemoryArena, BitmapFileSize);
-	FetchResourceFile("./assets/horon_village_indoors.bmp", BitmapBuffer, BitmapFileSize); // Fetches the file.
+	FetchResourceFile("./assets/test.bmp", BitmapBuffer, BitmapFileSize); // Fetches the file.
 
 	bitmap_section* BitmapSection = GetDIBitmapHeaders(BitmapBuffer); // Properly loads with 32-bit color index, DIB-V5.
 
@@ -205,17 +287,11 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 	Renderer->Image = BTMonotonicArenaPushTopSize(&EngineState->EngineMemoryArena,
 		Renderer->WindowDimensions.width*Renderer->WindowDimensions.height*sizeof(u32));
 
-#if 0
-	// We will now fill the screen with a debug color: red!
-	for (u32 pIndex = 0; pIndex < (u32)Renderer->WindowDimensions.width*(u32)Renderer->WindowDimensions.height; ++pIndex)
-	{
-		u32* Pixel = (u32*)Renderer->Image + pIndex;
-		*Pixel = 0x00FF0000;
-	}
-#else
+	/**
+	 *	We are filling the background to clear out the contents of the last frame.
+	 */
 	DrawRect(EngineRenderer, 0, 0, EngineRenderer->WindowDimensions.width,
 		EngineRenderer->WindowDimensions.height, CreateDIBPixel(1.0f, 1.0f, 0.0f, 0.0f));
-#endif
 
 
 	/**
