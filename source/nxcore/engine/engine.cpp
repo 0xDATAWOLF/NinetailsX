@@ -102,9 +102,14 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 	/**
 	 * Drawing the test bitmap!
 	 */
+#if 0 
 	DrawBitmap(EngineRenderer, EngineState->testbitmap.buffer,
 		0, 0,
 		EngineState->testbitmap.dims.width, EngineState->testbitmap.dims.height);
+#else
+	texture testTex = CreateTextureFromBitmap(&EngineState->testbitmap, {16,16}, {16,16});
+	DrawTexture(EngineRenderer, &testTex, -8, -8);
+#endif
 
 	/**
 	 * NOTE:

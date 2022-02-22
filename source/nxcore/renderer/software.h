@@ -193,4 +193,74 @@ DrawBitmap(renderer* Renderer, void* bitmap, i32 x, i32 y, i32 bitmapWidth, i32 
 
 }
 
+/**
+ * Draws a texture to the screen.
+ */
+internal void
+DrawTexture(renderer* Renderer, texture* tex, i32 x, i32 y)
+{
+
+	// Draw the bitmap.
+	//DrawBitmap(Renderer, bitmapSource, x, y, tex->dims.width, tex->dims.height);
+
+
+	// Check within bounds, exit if it isn't.
+	if (!IsWithinBitmapBounds(Renderer->WindowDimensions.width, Renderer->WindowDimensions.height,
+		x, y, tex->dims.width, tex->dims.height)) return;
+
+
+	// We need to preserve parameter values.
+	v2i uvOffset = GetAbsoluteCoordsFromTextureUV(tex);
+	u32* sourceBitmap = (u32*)tex->source->buffer + 
+		(tex->source->dims.width*uvOffset.y) + (uvOffset.x);
+	i32 sourceWidth = tex->dims.width;
+	i32 sourceHeight = tex->dims.height;
+	
+	// If we are slightly out of bounds, we need to clip the source and offset the source bitmap.
+	if (x < 0)
+	{
+		i32 offsetX = absolute_i32(x);
+		sourceWidth -= offsetX;
+		sourceBitmap += offsetX; // Offsetting forward
+		x = 0; // Placing back in bounds
+	}
+
+	// We do not need to offset the source bitmap, but we do need to shrink the width to fit
+	// against the right edge.
+	else if (x+sourceWidth >= Renderer->WindowDimensions.width)
+	{
+		sourceWidth -= ((x+sourceWidth) - Renderer->WindowDimensions.width);
+	}
+
+	// Applying what we did to the x-coordinates with they y-coordinates above, except now we need
+	// to jump down rows.
+	if (y < 0)
+	{
+		i32 offsetY = absolute_i32(y);
+		sourceHeight -= offsetY;
+		sourceBitmap += (tex->source->dims.width * offsetY); // Offsetting down y-rows
+		y = 0; // Placing back in bounds
+	}
+
+	// Shrink to fit at y.
+	else if (y+sourceHeight >= Renderer->WindowDimensions.height)
+	{
+		sourceHeight -= ((y+sourceHeight) - Renderer->WindowDimensions.height);
+	}
+
+	// Now we can copy to the buffer.
+	u32* destBitmap = (u32*)Renderer->Image + ((Renderer->WindowDimensions.width*y) + x);
+	for (i32 row = 0; row < sourceHeight; ++row)
+	{
+		u32* destPitch = destBitmap + (row*Renderer->WindowDimensions.width);
+		u32* sourcePitch = sourceBitmap + (row*tex->source->dims.width);
+		for (i32 col = 0; col < sourceWidth; ++col)
+		{
+			*destPitch++ = *sourcePitch++;
+		}
+	}
+
+
+}
+
 #endif
