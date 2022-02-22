@@ -2,4 +2,5 @@
 /build
 /.vscode
 /assets/*
+!/assets/test.bmp
 !/assets/note.txt
