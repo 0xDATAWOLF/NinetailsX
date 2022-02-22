@@ -260,6 +260,48 @@ DrawTexture(renderer* Renderer, texture* tex, i32 x, i32 y)
 		}
 	}
 
+}
+
+/**
+ * Creates a bitmap layer, returns the data back as a dibitmap. This layer is formatted
+ * with the renderer's dimensions such that it can be drawn on.
+ * 
+ * This pushes on the top of the bt-monotonic memory arena.
+ */
+internal dibitmap
+CreateBitmapLayer(btmonotonic_memory_arena* arena, v2i dims)
+{
+
+	// We need to allocate space for the buffer (pixel size * dims) and the header
+	// structure. This is needed to properly define the bitmap.
+	u32 buffsize = (sizeof(u32) * (u32)dims.x * (u32)dims.y) + sizeof(bitmap_header);
+	void* buffer = BTMonotonicArenaPushTopSize(arena, buffsize);
+
+	dibitmap bitmap = {};
+	bitmap.dims = dims;
+	bitmap.buffer = (u8*)buffer + sizeof(bitmap_header); // Where the actual pixel data is stored.
+
+	// Fill out the file header.
+	bitmap.header->fileHeader.dataOffset = sizeof(bitmap_header);
+	bitmap.header->fileHeader.signature = 'MB'; // Little endian...?
+	bitmap.header->fileHeader.fileSize = buffsize;
+	bitmap.header->fileHeader._reserved = 0x9F011FFF; // We can set this to whatever we want, so sign it!
+
+	// Fill out the info header.
+	bitmap.header->infoHeader.bitmask_alpha = 	0xFF000000;
+	bitmap.header->infoHeader.bitmask_red = 	0x00FF0000;
+	bitmap.header->infoHeader.bitmask_green = 	0x0000FF00;
+	bitmap.header->infoHeader.bitmask_blue = 	0x000000FF;
+	bitmap.header->infoHeader.bpp = 32; // Always!
+	bitmap.header->infoHeader.compression = 0; // No compression, BI_RGB
+	bitmap.header->infoHeader.height = dims.height;
+	bitmap.header->infoHeader.width = dims.width;
+	bitmap.header->infoHeader.size = sizeof(bitmap_info_header_v5); // Size of the infoheader.
+	bitmap.header->infoHeader.imageSize = (sizeof(u32) * (u32)dims.x * (u32)dims.y); // Size of pixel buffer.
+	bitmap.header->infoHeader.planes = 1; // Always 1.
+	bitmap.header->infoHeader.colorsUsed = 0; // We aren't using a color pallete.
+
+	return bitmap;
 
 }
 
