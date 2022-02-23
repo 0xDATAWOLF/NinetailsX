@@ -15,7 +15,8 @@
 typedef struct renderer
 {
 	v2i WindowDimensions;
-	void* Image;
+	void* Image; // Maps to screenBitmap.
+	dibitmap screenBitmap; // Actually defines the bitmap.
 } renderer;
 
 #endif
