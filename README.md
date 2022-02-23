@@ -5,18 +5,18 @@ of the project focuses primary on 2D software rendering (no assistance from the 
 while I do intend to extend support across multiple platforms, this project is primarily built on and
 for Windows.
 
-## Development Requirements
+### Development Requirements
 
 Windows, CMake, and a compiler which can compile C++17 is necessary for a near headache-less experience.
 
-## Notes on Documentation
+### Notes on Documentation
 
 Due to the early nature of the project, documentation is rather limited. The ever-evolving nature means
 that all existing APIs are subject to change frequently, therefore I can not provide much documentation
 outside the source code itself. I highly encourage exploring the source code, as I do make an effort to
 document what I am doing, what it is for, and how it works.
 
-## License Requirements
+### License Requirements
 
 You may **not** use this project for commercial purposes. You may use this for personal projects or,
 if you plan to use this for commercial purposes, please contact me before moving forward.
@@ -29,7 +29,7 @@ The documentation below are a rough overview of what this engine is about, the c
 and general roadmap and function of the API. As mentioned above, specific documentation is limited to the
 source code. Please reference the source code for more information.
 
-## 1. Platform and Engine Layers
+### 1. Platform and Engine Layers
 
 The standard structure of this project involves a separation of "engine" and "platform", that is, all
 code within the engine is independent from the platform it runs on. The platform code, such as Win32
@@ -41,7 +41,7 @@ The platform entry point is: `/source/platform/*platform_name*/main.cpp`
 
 The engine entry point is: `/source/nxcore/engine/engine.cpp`
 
-## 2. Software Renderering
+### 2. Software Renderering
 
 The current supported method of rendering with this engine is software rendering. Software rendering
 uses the CPU and the builtin window framework of the platform it runs on to draw to the screen. In the
@@ -53,7 +53,7 @@ You can find all software rendering related functions and helpers in:
 Since software rendering is the only method for rendering currently, the platform is expecting a
 bitmap buffer of exactly the resolution it is set to.
 
-## 3. Memory Management
+### 3. Memory Management
 
 Memory management is handled with custom allocators... really dumb allocators. The current method
 for allocating and "deallocating" is done through monotonic allocators. The engine is currently set
@@ -70,7 +70,7 @@ either two things: a memory leak, or improper design.
 You can find the definitions of the memory management at:
 `source/nxcore/memory.h`
 
-## 4. Primitive Types
+### 4. Primitive Types
 
 The engine and platform have access to a set of pre-defined primitive types which correspond to the
 size they represent. This relies on the `stdint.h` header since it guarantees that the sizes they
