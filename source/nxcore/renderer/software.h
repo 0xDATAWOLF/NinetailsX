@@ -15,14 +15,36 @@ internal void
 __DrawLine() { /** IMPLEMENT LATER */ return; };
 
 /**
- * DrawRect
- * 			Draws a rectangle of a given size at a given position using a given hex-encoded color.
- * 			This color follows the the 0xXXRRGGBB format.
+ * Determines if one bitmap exists within the boundary of another bitmap with the origin
+ * placed at the left-lower corner.
+ */
+inline b32
+IsWithinBitmapBounds(i32 parentWidth, i32 parentHeight, i32 x, i32 y, i32 subWidth, i32 subHeight)
+{
+	b32 _within_bounds = true;
+
+	if (x+subWidth < 0) _within_bounds = false;
+	if (x >= parentWidth) _within_bounds = false;
+	if (y+subHeight < 0) _within_bounds = false;
+	if (y >= parentHeight) _within_bounds = false;
+
+	return _within_bounds;
+}
+
+/**
+ * Draws a rectangle of a given size and color to a bitmap.
+ * 
+ * This improved version:
+ * Utilizes the simpler code of the other draw functions and no longer uses the
+ * renderer struct as a dependancy (because these draw functions operate on bitmaps,
+ * we don't really care *what* bitmap it is we are drawing to, only that it is a
+ * properly formatted bitmap).
  */
 internal void
-DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
+DrawRect(dibitmap* bitmap, v2i rectPos, v2i rectDims, u32 color)
 {
 
+#if 0
 	// This is meant to preserve the state of the input variables for debugging purposes.
 	i32 RectX = x;
 	i32 RectY = y;
@@ -109,24 +131,48 @@ DrawRect(renderer* Renderer, i32 x, i32 y, i32 width, i32 height, u32 color)
 			*Pixel++ = color;
 		}
 	}
+#else
 
-}
+	// Check within bounds for drawing, exit if it isn't.
+	if (!IsWithinBitmapBounds(bitmap->dims.width, bitmap->dims.height,
+		rectPos.x, rectPos.y, rectDims.width, rectDims.height)) return;
 
-/**
- * Determines if one bitmap exists within the boundary of another bitmap with the origin
- * placed at the left-lower corner.
- */
-inline b32
-IsWithinBitmapBounds(i32 parentWidth, i32 parentHeight, i32 x, i32 y, i32 subWidth, i32 subHeight)
-{
-	b32 _within_bounds = true;
+	// Boundary adjustments on the x-boundary.
+	if (rectPos.x < 0)
+	{
+		rectDims.width -= absolute_i32(rectPos.x);
+		rectPos.x = 0;
+	}
+	else if (rectPos.x+rectDims.width > bitmap->dims.width)
+	{
+		rectDims.width -= ((rectPos.x+rectDims.width) - bitmap->dims.width);
+	}
 
-	if (x+subWidth < 0) _within_bounds = false;
-	if (x >= parentWidth) _within_bounds = false;
-	if (y+subHeight < 0) _within_bounds = false;
-	if (y >= parentHeight) _within_bounds = false;
+	// Boundary adjustments on the y-boundary.
+	if (rectPos.y < 0)
+	{
+		rectDims.height -= absolute_i32(rectPos.y);
+		rectPos.y = 0;
+	}
+	else if (rectPos.y+rectDims.height > bitmap->dims.height)
+	{
+		rectDims.height -= ((rectPos.y+rectDims.height) - bitmap->dims.height);
+	}
 
-	return _within_bounds;
+	// Drawing to the bitmap.
+	u32* offsetStart = (u32*)bitmap->buffer + (bitmap->dims.width*rectPos.y) + rectPos.x;
+	for (i32 Row = 0; Row < rectDims.height; ++Row)
+	{
+		u32* Pitch = offsetStart + (Row*bitmap->dims.width);
+		for (i32 Col = 0; Col < rectDims.width; ++Col)
+		{
+			u32* Pixel = Pitch + Col;
+			*Pixel = color;
+		}
+	}
+
+#endif
+
 }
 
 /**
@@ -280,6 +326,7 @@ CreateBitmapLayer(btmonotonic_memory_arena* arena, v2i dims)
 	dibitmap bitmap = {};
 	bitmap.dims = dims;
 	bitmap.buffer = (u8*)buffer + sizeof(bitmap_header); // Where the actual pixel data is stored.
+	bitmap.header = (bitmap_header*)buffer; // Cast the head of the bitmap buffer to bitmap_header.
 
 	// Fill out the file header.
 	bitmap.header->fileHeader.dataOffset = sizeof(bitmap_header);

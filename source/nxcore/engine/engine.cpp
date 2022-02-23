@@ -81,7 +81,7 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 	 * NOTE:
 	 * 			We are using the top of our memory allocator as our frame allocator.
 	 * 			This will reset every frame, therefore it's safe to shove volatile
-	 * 			memory into it so long as we reset it.
+	 * 			memory into it so long as we reset it each frame.
 	 */
 	ResetBTMonotonicMemoryArenaTop(&EngineState->EngineMemoryArena);
 
@@ -90,19 +90,25 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 	 * exact fill for the window, we can simply calculate the size by multiplying out the width, height,
 	 * and the bits-per-pixel (32bits, XRGB).
 	 */
-	Renderer->Image = BTMonotonicArenaPushTopSize(&EngineState->EngineMemoryArena,
-		Renderer->WindowDimensions.width*Renderer->WindowDimensions.height*sizeof(u32));
+	//Renderer->Image = BTMonotonicArenaPushTopSize(&EngineState->EngineMemoryArena,
+	//	Renderer->WindowDimensions.width*Renderer->WindowDimensions.height*sizeof(u32));
+	
+	// Actually, now we can just define a standard bitmap as our screen.
+	EngineRenderer->screenBitmap = CreateBitmapLayer(&EngineState->EngineMemoryArena, Renderer->WindowDimensions);
+	EngineRenderer->Image = EngineRenderer->screenBitmap.buffer; // Map Image to bitmap buffer location.
 
 	/**
 	 *	We are filling the background to clear out the contents of the last frame.
 	 */
-	DrawRect(EngineRenderer, 0, 0, EngineRenderer->WindowDimensions.width,
-		EngineRenderer->WindowDimensions.height, CreateDIBPixel(1.0f, 1.0f, 0.0f, 0.0f));
+	//DrawRect(EngineRenderer, 0, 0, EngineRenderer->WindowDimensions.width,
+	//	EngineRenderer->WindowDimensions.height, CreateDIBPixel(1.0f, 1.0f, 0.0f, 0.0f));
+	DrawRect(&EngineRenderer->screenBitmap, {0,0}, EngineRenderer->WindowDimensions,
+		CreateDIBPixel(1.0f, 1.0f, 0.0f, 0.0f));
 
 	/**
 	 * Drawing the test bitmap!
 	 */
-#if 0 
+#if 1
 	DrawBitmap(EngineRenderer, EngineState->testbitmap.buffer,
 		0, 0,
 		EngineState->testbitmap.dims.width, EngineState->testbitmap.dims.height);
