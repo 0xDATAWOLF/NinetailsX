@@ -1,9 +1,31 @@
-#include <nxcore/engine.h>
-
 /**
- * Globals defines all engine globals.
+ * 
+ * The TODO-List
+ * 
+ * 1. Bitmap Renderer Model
+ * 		a. Bitmap Layers (Base Layer, composit layers... z-ordering?)
+ * 		b. Textures (Image loading, make textures, resource handling)
+ * 		c. Rectangle Draw (Simple primitive drawing)
+ * 		d. Objects & Models (Contains Texture + UV)
+ * 		e. Combine Layers (May need performance modification)
+ * 		f. Final bitmap to Platform
+ * 
+ * 2. Application Scaling
+ * 		a. Set up fixed resolutions.
+ * 		b. Letter boxing, centering + offset controls
+ * 		c. Set up dynamic resolutions (to the nearested power of 2 scaling)
+ * 
  */
+
+#include <nxcore/engine.h>
 #include "globals.h"
+
+typedef struct
+{
+	texture tex;
+	v3 position;
+	v2 UV;
+} entity_t;
 
 /**
  * The re-initialization method if the engine DLL is reloaded during run-time.
@@ -108,14 +130,14 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 	/**
 	 * Drawing the test bitmap!
 	 */
-#if 1
-	DrawBitmap(EngineRenderer, EngineState->testbitmap.buffer,
-		0, 0,
-		EngineState->testbitmap.dims.width, EngineState->testbitmap.dims.height);
-#else
-	texture testTex = CreateTextureFromBitmap(&EngineState->testbitmap, {16,16}, {16,16});
-	DrawTexture(EngineRenderer, &testTex, -8, -8);
-#endif
+	//DrawBitmap(EngineRenderer, EngineState->testbitmap.buffer,
+	//	80, 80,
+	//	EngineState->testbitmap.dims.width, EngineState->testbitmap.dims.height);
+
+	DrawBitmap(&EngineRenderer->screenBitmap, &EngineState->testbitmap, {80,80});
+
+	//texture testTex = CreateTextureFromBitmap(&EngineState->testbitmap, {16,16}, {16,16});
+	//DrawTexture(EngineRenderer, &testTex, 10, 10);
 
 	/**
 	 * NOTE:
