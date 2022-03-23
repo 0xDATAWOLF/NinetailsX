@@ -21,7 +21,7 @@ document what I am doing, what it is for, and how it works.
 You may **not** use this project for commercial purposes. You may use this for personal projects or,
 if you plan to use this for commercial purposes, please contact me before moving forward.
 
-<br>
+
 
 # Documentation
 
@@ -143,3 +143,47 @@ represent are the sizes they are defined to be.
 		<td>A bool type with 64-bit sizing.</td>
 	</tr>
 </table>
+
+# Programming Standards
+
+As the project matures, new coding standards will arise. There will be an interspersed mix of standards
+in the early sections of the code, however they will be changed and updated as the API grows.
+
+### Functions & Structs
+
+Pascal case for functions, full lower case with underscore word separators followed by `_t` following the
+typedef. Here are some sample examples:
+
+For generic functions, return type and other descriptors head the function name on one line. Function
+name appears below with brackets set on new line.
+```c++
+void
+MyFunction()
+{
+	DoWork();
+	return;
+}
+```
+
+For functions that interact with the platform API, such as Win32, compose your functions like so:
+```c++
+inline DWORD
+Win32FoobarBaz()
+{
+	DoWork();
+	return 0;
+}
+```
+
+For structs, always typedef and use the "_t" identifier at the end. Members within structs should be
+camelcase or use underscore separators:
+```c++
+typedef struct
+{
+	v2 myVector;
+	r32 myFloat;
+	r32 foo_bar;
+	r32 _myInternal;
+	r32 _another_internal;
+} my_struct_t;
+```
