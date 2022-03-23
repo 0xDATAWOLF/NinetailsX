@@ -321,7 +321,6 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 */
 	app_state _appState;
 	ApplicationState = &_appState;
-	renderer* Renderer = &ApplicationState->Renderer;
 
 	/**
 	 * Create & fill out the WNDCLASS struct.
@@ -386,7 +385,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, InitWindowDimensions.width, InitWindowDimensions.height, NULL,
 		NULL, hInstance, NULL);
 
-	Renderer->WindowDimensions = InitWindowDimensions;
+	ApplicationState->WindowProperties.dimensions = InitWindowDimensions;
 
 	/** 
 	 * NOTE:
@@ -440,9 +439,8 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 #else
 	void* HeapMemory = VirtualAlloc((void*)0x00, VIRTUAL_ALLOCATION_SIZE, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
 #endif
-	ApplicationState->MemoryLayout.Base = HeapMemory;
-	ApplicationState->MemoryLayout.Size = VIRTUAL_ALLOCATION_SIZE;
-	memory_layout* GameMemoryLayout = &ApplicationState->MemoryLayout;
+	ApplicationState->appMemStore = HeapMemory;
+	ApplicationState->appMemSize = VIRTUAL_ALLOCATION_SIZE;
 
 	/**
 	 * In order for us to do any file IO operations, we need to create a base path for which we can
@@ -527,10 +525,11 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 	 * the init finishes up, we can begin showing the window and initiated the engine runtime.
 	 */
 	engine_library& EngineLib = ApplicationState->EngineLibrary;
-	EngineLib.EngineInit(GameMemoryLayout, Renderer, &ApplicationState->ResourceHandlerInterface);
+	EngineLib.EngineInit(ApplicationState->appMemStore, ApplicationState->appMemSize,
+		&ApplicationState->WindowProperties, &ApplicationState->ResourceHandlerInterface);
 
-	if (GetWindowClientSize(WindowHandle) != Renderer->WindowDimensions)
-		SetWindowClientSize(WindowHandle, Renderer->WindowDimensions);
+	if (GetWindowClientSize(WindowHandle) != ApplicationState->WindowProperties.dimensions)
+		SetWindowClientSize(WindowHandle, ApplicationState->WindowProperties.dimensions);
 
 
 	/**
@@ -599,7 +598,7 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * 			Define an enumeration outlining various reasons for closing, such as standard exits,
 		 * 			error exits, re-init exits, etc.
 		 */
-		b32 EngineStatus = EngineLib.EngineRuntime(GameMemoryLayout, Renderer, &ApplicationState->InputHandle); 
+		b32 EngineStatus = EngineLib.EngineRuntime(&ApplicationState->WindowProperties, &ApplicationState->InputHandle); 
 
 		// If the engine status returns non-zero status, it means we should close.
 		if (EngineStatus != NULL)
@@ -608,8 +607,8 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		}
 
 		// The engine may request the window be resized the accomodate the size of the render area.
-		if (GetWindowClientSize(WindowHandle) != Renderer->WindowDimensions)
-			SetWindowClientSize(WindowHandle, Renderer->WindowDimensions);
+		if (GetWindowClientSize(WindowHandle) != ApplicationState->WindowProperties.dimensions)
+			SetWindowClientSize(WindowHandle, ApplicationState->WindowProperties.dimensions);
 
 		/**
 		 * Now that the frame is completed, we can swap the input buffers for the next frame.
@@ -670,7 +669,8 @@ wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PWSTR Commandline, int Com
 		 * We are rendering the bitmap to the screen using a "software" implementation--that is, we're
 		 * just drawing straight to the Window using Window's bitmap drawing method.
 		 */
-		RenderSoftwareBitmap(ApplicationState, Renderer->Image, Renderer->WindowDimensions.width, Renderer->WindowDimensions.height);
+		RenderSoftwareBitmap(ApplicationState, ApplicationState->WindowProperties.softwareBitmap,
+			ApplicationState->WindowProperties.dimensions.width, ApplicationState->WindowProperties.dimensions.height);
 
 		/**
 		 * We will now reset everything for the next frame.

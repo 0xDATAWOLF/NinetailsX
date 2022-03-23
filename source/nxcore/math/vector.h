@@ -278,7 +278,6 @@ operator*(const i32& lhs, const v2i& rhs)
 {
 	return { rhs.x * lhs, rhs.y * lhs };
 }
-
 #endif
 
 #endif

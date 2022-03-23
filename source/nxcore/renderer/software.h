@@ -2,6 +2,7 @@
 #define NINETAILSX_SOFTWARE_H
 #include <nxcore/helpers.h>
 #include <nxcore/renderer.h>
+#include <nxcore/resources.h>
 
 /**
  * TODO:

@@ -1,10 +1,7 @@
 #ifndef NINETAILSX_WIN32_MAIN_H
 #define NINETAILSX_WIN32_MAIN_H
 #include <windows.h>
-#include <nxcore/helpers.h>
-#include <nxcore/memory.h>
-#include <nxcore/engine.h>
-#include <nxcore/input.h>
+#include <nxcore/core.h>
 
 
 typedef struct engine_library
@@ -18,8 +15,9 @@ typedef struct app_state
 {
 	res_handler_interface ResourceHandlerInterface;
 	engine_library EngineLibrary;
-	memory_layout MemoryLayout;
-	renderer Renderer;
+	window_props WindowProperties;
+	void* appMemStore;
+	u64 appMemSize;
 	action_interface InputHandle;
 	input InputSwapBuffer[2];
 	char BasePath[MAX_PATH];

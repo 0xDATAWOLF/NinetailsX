@@ -2,21 +2,21 @@
 #define NINETAILSX_RENDERER_H
 #include <nxcore/helpers.h>
 #include <nxcore/math.h>
+#include <nxcore/renderer/software.h>
+#include <nxcore/renderer/colors.h>
 
-/**
- * renderer
- * 			The render layout which serves as an in/out method of providing rendering data to the
- * 			platform. The platform is responsible for reporting the current width/height of the
- * 			drawing area/client area, while the engine is responsible for providing the image data
- * 			back to the platform. The engine may resize the window by setting the width/height and
- * 			the platform must respond to these changes by setting the window size.
- * 
- */
-typedef struct renderer
+typedef struct
 {
-	v2i WindowDimensions;
-	void* Image; // Maps to screenBitmap.
-	dibitmap screenBitmap; // Actually defines the bitmap.
-} renderer;
+	dibitmap* source;
+	v2i dims;
+} texture_t;
+
+inline texture_t
+CreateTextureFromBitmap(dibitmap* source)
+{
+	texture_t _tex;
+	_tex.dims = source->dims;
+	_tex.source = source;
+}
 
 #endif

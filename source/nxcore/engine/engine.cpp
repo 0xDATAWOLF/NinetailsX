@@ -15,14 +15,21 @@
  * 		b. Letter boxing, centering + offset controls
  * 		c. Set up dynamic resolutions (to the nearested power of 2 scaling)
  * 
+ * 3. Cleanup & Refactoring
+ * 		a. Globals (Platform-to-Engine Functions, Engine State)
+ * 		b. Untie Struct Dependencies in Engine.h
  */
 
 #include <nxcore/engine.h>
-#include "globals.h"
+#include <nxcore/core.h>
+
+global engine_state* EngineState;
+fnptr_platform_fetch_res_file* FetchResourceFile;
+fnptr_platform_fetch_res_size* FetchResourceSize;
 
 typedef struct
 {
-	texture tex;
+	texture_t tex;
 	v3 position;
 	v2 UV;
 } entity_t;
@@ -36,12 +43,8 @@ typedef struct
  * 			used for anything yet.
  */
 NinetailsXAPI i32
-EngineReinit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interface* ResourceHandler)
+EngineReinit(void* memStore, u64 memSize, window_props* window_props, res_handler_interface* ResourceHandler)
 {
-
-	// Store the renderer and memory_layout into globals.
-	EngineMemoryLayout = MemoryLayout;
-	EngineRenderer = Renderer;
 
 	// Initialized resource handler functions as well.
 	FetchResourceFile = ResourceHandler->FetchResourceFile;
@@ -49,7 +52,7 @@ EngineReinit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interf
 
 	// Cast the MemoryLayout to engine_state which contains the engine's persistent state.
 	// When the DLL reloads, this is how we persist the state.
-	EngineState = (engine_state*)MemoryLayout->Base;
+	EngineState = (engine_state*)memStore;
 
 	return 0;	
 }
@@ -61,14 +64,14 @@ EngineReinit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interf
  * component initialization.
  */
 NinetailsXAPI i32
-EngineInit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interface* ResourceHandler)
+EngineInit(void* memStore, u64 memSize, window_props* windowProps, res_handler_interface* ResourceHandler)
 {
 
 	// We call EngineReinit here because it will set all the engine globals to the correct state.
-	EngineReinit(MemoryLayout, Renderer, ResourceHandler);
+	EngineReinit(memStore, memSize, windowProps, ResourceHandler);
 
 	// Initialize window dimensions on start up.
-	EngineRenderer->WindowDimensions = { 160, 144 };
+	windowProps->dimensions = { 160, 144 };
 
 	/**
 	 * We need to initialize the engine_state since EngineInit is called before the runtime performs
@@ -76,8 +79,8 @@ EngineInit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interfac
 	 * to ensure that everything is correctly initialized here such that the state persists.
 	 */
 	EngineState->Initialized = true;
-	void* EngineHeapBasePointer = (void*)((u8*)MemoryLayout->Base + sizeof(engine_state));
-	u32 EngineHeapSize = (u32)(MemoryLayout->Size - sizeof(engine_state));
+	void* EngineHeapBasePointer = (void*)((u8*)memStore + sizeof(engine_state));
+	u64 EngineHeapSize = (u64)(memSize - sizeof(engine_state));
 	EngineState->EngineMemoryArena = CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
 
 	/**
@@ -96,7 +99,7 @@ EngineInit(memory_layout* MemoryLayout, renderer* Renderer, res_handler_interfac
  * The frame-runtime of the engine.
  */
 NinetailsXAPI i32
-EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface* InputHandle)
+EngineRuntime(window_props* windowProps, action_interface* InputHandle)
 {
 
 	/**
@@ -108,36 +111,19 @@ EngineRuntime(memory_layout* MemoryLayout, renderer* Renderer, action_interface*
 	ResetBTMonotonicMemoryArenaTop(&EngineState->EngineMemoryArena);
 
 	/**
-	 * We need to allocate space for the software bitmap. Since we know that the bitmap will be an
-	 * exact fill for the window, we can simply calculate the size by multiplying out the width, height,
-	 * and the bits-per-pixel (32bits, XRGB).
+	 * We need to allocate space for the software bitmap and then set the window properties source buffer
+	 * to that bitmap so it can be drawn.
 	 */
-	//Renderer->Image = BTMonotonicArenaPushTopSize(&EngineState->EngineMemoryArena,
-	//	Renderer->WindowDimensions.width*Renderer->WindowDimensions.height*sizeof(u32));
-	
-	// Actually, now we can just define a standard bitmap as our screen.
-	EngineRenderer->screenBitmap = CreateBitmapLayer(&EngineState->EngineMemoryArena, Renderer->WindowDimensions);
-	EngineRenderer->Image = EngineRenderer->screenBitmap.buffer; // Map Image to bitmap buffer location.
+	EngineState->base_layer = CreateBitmapLayer(&EngineState->EngineMemoryArena, windowProps->dimensions);
+	windowProps->softwareBitmap = EngineState->base_layer.buffer;
 
 	/**
-	 *	We are filling the background to clear out the contents of the last frame.
+	 * We are filling the background to clear out the contents of the last frame then we are drawing a
+	 * bitmap to test the basic drawing functions.
 	 */
-	//DrawRect(EngineRenderer, 0, 0, EngineRenderer->WindowDimensions.width,
-	//	EngineRenderer->WindowDimensions.height, CreateDIBPixel(1.0f, 1.0f, 0.0f, 0.0f));
-	DrawRect(&EngineRenderer->screenBitmap, {0,0}, EngineRenderer->WindowDimensions,
+	DrawRect(&EngineState->base_layer, {0,0}, EngineState->base_layer.dims,
 		CreateDIBPixel(1.0f, 1.0f, 0.0f, 0.0f));
-
-	/**
-	 * Drawing the test bitmap!
-	 */
-	//DrawBitmap(EngineRenderer, EngineState->testbitmap.buffer,
-	//	80, 80,
-	//	EngineState->testbitmap.dims.width, EngineState->testbitmap.dims.height);
-
-	DrawBitmap(&EngineRenderer->screenBitmap, &EngineState->testbitmap, {80,80});
-
-	//texture testTex = CreateTextureFromBitmap(&EngineState->testbitmap, {16,16}, {16,16});
-	//DrawTexture(EngineRenderer, &testTex, 10, 10);
+	DrawBitmap(&EngineState->base_layer, &EngineState->testbitmap, {80,80});
 
 	/**
 	 * NOTE:
