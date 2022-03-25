@@ -1,4 +1,0 @@
-Here lies the assets!
-
-Unfortunately, assets for this project are the property of Capcom and Nintendo.
-For now, this folder will remain empty (on git).

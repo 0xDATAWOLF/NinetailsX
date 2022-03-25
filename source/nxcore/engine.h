@@ -5,10 +5,9 @@
 #include <nxcore/math.h>
 #include <nxcore/input.h>
 #include <nxcore/resources.h>
-#include <nxcore/renderer/software.h>
-#include <nxcore/renderer/colors.h>
+#include <nxcore/renderer.h>
 
-typedef struct engine_state
+typedef struct
 {
 	btmonotonic_memory_arena EngineMemoryArena;
 	b32 Initialized;

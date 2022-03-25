@@ -1,9 +1,7 @@
 #ifndef NINETAILSX_SOFTWARE_H
 #define NINETAILSX_SOFTWARE_H
 #include <nxcore/helpers.h>
-#include <nxcore/renderer.h>
-#include <nxcore/resources.h>
-
+#include <nxcore/renderer/dibitmap.h>
 /**
  * TODO:
  * 			I'd like to learn how to draw an arbitrary line based on two coordinates.
