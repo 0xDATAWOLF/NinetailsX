@@ -4,6 +4,7 @@
 #include <nxcore/math.h>
 #include <nxcore/renderer/software.h>
 #include <nxcore/renderer/colors.h>
+#include <nxcore/renderer/dibitmap.h>
 
 typedef struct
 {

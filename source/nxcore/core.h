@@ -15,6 +15,10 @@ typedef struct
 	void* softwareBitmap;
 } window_props;
 
+/** Platform -> Engine */
+typedef u32 fnptr_platform_fetch_res_file(char* RelativePath, void* Buffer, u32 BuffSize);
+typedef u32 fnptr_platform_fetch_res_size(char* RelativePath);
+
 typedef struct
 {
 	fnptr_platform_fetch_res_file* FetchResourceFile;
