@@ -1,5 +1,0 @@
-#ifndef NINETAILSX_RESOURCES_H
-#define NINETAILSX_RESOURCES_H
-
-
-#endif

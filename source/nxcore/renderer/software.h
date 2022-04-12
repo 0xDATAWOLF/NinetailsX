@@ -284,21 +284,26 @@ DrawTexture(dibitmap* bitmap, texture* tex, i32 x, i32 y)
 }
 #endif
 
+/**
+ * Calculates the size of a bitmap based on the given dimensions and bytes per pixel. Typically,
+ * bytes-per-pixel is sizeof(unsigned int) or sizeof(u32).
+ */
+inline size_t
+GetBitmapSize(u32 bytesPerPixel, v2i dims)
+{
+	size_t _bitmap_size = (bytesPerPixel * dims.x * dims.y) + sizeof(bitmap_header);
+	return _bitmap_size;
+}
 
 /**
- * Creates a bitmap layer, returns the data back as a dibitmap. This layer is formatted
- * with the renderer's dimensions such that it can be drawn on.
- * 
- * This pushes on the top of the bt-monotonic memory arena.
+ * Creates a bitmap layer, returns the data back as a dibitmap structure. This layer is formatted
+ * with the renderer's dimensions such that it can be drawn on. Buffer is the location in memory where
+ * the structure is written and store into. Buffer must be allocated to store the header as well as the
+ * pixel buffer, so use GetBitmapSize() to get the desired size to allocate.
  */
 internal dibitmap
-CreateBitmapLayer(btmonotonic_memory_arena* arena, v2i dims)
+CreateBitmapLayer(void* buffer, u32 bufferSize, v2i dims)
 {
-
-	// We need to allocate space for the buffer (pixel size * dims) and the header
-	// structure. This is needed to properly define the bitmap.
-	u32 buffsize = (sizeof(u32) * (u32)dims.x * (u32)dims.y) + sizeof(bitmap_header);
-	void* buffer = BTMonotonicArenaPushTopSize(arena, buffsize);
 
 	dibitmap bitmap = {};
 	bitmap.dims = dims;
@@ -308,7 +313,7 @@ CreateBitmapLayer(btmonotonic_memory_arena* arena, v2i dims)
 	// Fill out the file header.
 	bitmap.header->fileHeader.dataOffset = sizeof(bitmap_header);
 	bitmap.header->fileHeader.signature = 'MB'; // Little endian...?
-	bitmap.header->fileHeader.fileSize = buffsize;
+	bitmap.header->fileHeader.fileSize = bufferSize;
 	bitmap.header->fileHeader._reserved = 0x9F011FFF; // We can set this to whatever we want, so sign it!
 
 	// Fill out the info header.

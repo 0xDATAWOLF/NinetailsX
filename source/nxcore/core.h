@@ -7,7 +7,6 @@
 #include <nxcore/helpers.h>
 #include <nxcore/math.h>
 #include <nxcore/input.h>
-#include <nxcore/resources.h>
 
 typedef struct
 {

@@ -4,12 +4,11 @@
 #include <nxcore/memory.h>
 #include <nxcore/math.h>
 #include <nxcore/input.h>
-#include <nxcore/resources.h>
 #include <nxcore/renderer.h>
 
 typedef struct
 {
-	btmonotonic_memory_arena EngineMemoryArena;
+	memarena_t EngineMemoryArena;
 	b32 Initialized;
 
 	i32 x, y;
