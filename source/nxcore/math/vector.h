@@ -250,6 +250,13 @@ typedef union v2i
 	{
 		return e[index];
 	}
+	inline v2i&
+	operator*=(const i32 rhs)
+	{
+		x *= rhs;
+		y *= rhs;
+		return *this;
+	}
 #endif
 } v2i;
 

@@ -19,10 +19,10 @@ CreateDIBPixel(r32 a, r32 r, r32 g, r32 b)
 {
 
 	u32 _pixel = 0x0;
-	u32 _pixel_a = (u8)(a*255) << 24;
-	u32 _pixel_r = (u8)(r*255) << 16;
-	u32 _pixel_g = (u8)(g*255) << 8;
-	u32 _pixel_b = (u8)(b*255) << 0;
+	u32 _pixel_a = (u8)(clamp_r32(a, 0.0f, 1.0f)*255) << 24;
+	u32 _pixel_r = (u8)(clamp_r32(r, 0.0f, 1.0f)*255) << 16;
+	u32 _pixel_g = (u8)(clamp_r32(g, 0.0f, 1.0f)*255) << 8;
+	u32 _pixel_b = (u8)(clamp_r32(b, 0.0f, 1.0f)*255) << 0;
 	_pixel |= _pixel_a | _pixel_r | _pixel_g | _pixel_b;
 	return _pixel;
 

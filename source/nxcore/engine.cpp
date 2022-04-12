@@ -26,7 +26,7 @@
 
 typedef struct
 {
-	texture_t tex;
+	u32 tex_id;
 	v3 position;
 	v2 UV;
 } entity_t;
@@ -67,7 +67,8 @@ EngineInit(void* memStore, u64 memSize, window_props* windowProps, res_handler_i
 	EngineReinit(memStore, memSize, windowProps, ResourceHandler);
 
 	// Initialize window dimensions on start up.
-	windowProps->dimensions = { 160, 144 };
+	windowProps->dimensions = { 160, 144 }; // 10:9 at 16*4 = 64
+	windowProps->dimensions *= 4;
 
 	/**
 	 * We need to initialize the engine_state since EngineInit is called before the runtime performs
@@ -77,16 +78,24 @@ EngineInit(void* memStore, u64 memSize, window_props* windowProps, res_handler_i
 	EngineState->Initialized = true;
 	void* EngineHeapBasePointer = (void*)((u8*)memStore + sizeof(engine_state));
 	u64 EngineHeapSize = (u64)(memSize - sizeof(engine_state));
-	EngineState->EngineMemoryArena = CreateBTMonotonicMemoryArena(EngineHeapBasePointer, EngineHeapSize);
+	EngineState->EngineMemoryArena = CreateMemoryArena(EngineHeapBasePointer, EngineHeapSize);
 
 	/**
 	 * Here, we are testing the resource fetching functions and bitmap stuff.
 	 */
 	u32 BitmapFileSize = ResourceInterface->FetchResourceSize("./assets/test.bmp");
-	EngineState->testbitmap_res = BTMonotonicArenaPushBottomSize(&EngineState->EngineMemoryArena, BitmapFileSize);
+	EngineState->testbitmap_res = PushSize(&EngineState->EngineMemoryArena, BitmapFileSize);
 	ResourceInterface->FetchResourceFile("./assets/test.bmp", EngineState->testbitmap_res, BitmapFileSize); // Fetches the file.
 
 	EngineState->testbitmap = GetBitmapFromResource(EngineState->testbitmap_res);
+
+	/**
+	 * Creating the base layer.
+	 */
+	u32 baseLayerSize = (u32)GetBitmapSize(sizeof(u32), windowProps->dimensions); // Cast down to a u32 for bitmap spec.
+	void* bitmapBuffer = PushSize(&EngineState->EngineMemoryArena, baseLayerSize);
+	EngineState->base_layer = CreateBitmapLayer(bitmapBuffer, baseLayerSize, windowProps->dimensions);
+	windowProps->softwareBitmap = EngineState->base_layer.buffer;
 
 	return 0;
 }
@@ -99,27 +108,28 @@ EngineRuntime(window_props* windowProps, action_interface* InputHandle)
 {
 
 	/**
-	 * NOTE:
-	 * 			We are using the top of our memory allocator as our frame allocator.
-	 * 			This will reset every frame, therefore it's safe to shove volatile
-	 * 			memory into it so long as we reset it each frame.
-	 */
-	ResetBTMonotonicMemoryArenaTop(&EngineState->EngineMemoryArena);
-
-	/**
-	 * We need to allocate space for the software bitmap and then set the window properties source buffer
-	 * to that bitmap so it can be drawn.
-	 */
-	EngineState->base_layer = CreateBitmapLayer(&EngineState->EngineMemoryArena, windowProps->dimensions);
-	windowProps->softwareBitmap = EngineState->base_layer.buffer;
-
-	/**
 	 * We are filling the background to clear out the contents of the last frame then we are drawing a
 	 * bitmap to test the basic drawing functions.
 	 */
 	DrawRect(&EngineState->base_layer, {0,0}, EngineState->base_layer.dims,
 		CreateDIBPixel(1.0f, 1.0f, 0.0f, 0.0f));
+
+	r32 shadeBumper = 0.0f;
+	for (i32 testY = 0; testY < 9; ++testY)
+	{
+		for (i32 testX = 0; testX < 10; ++testX)
+		{
+			//https://www.niwa.nu/2013/05/math-behind-colorspace-conversions-rgb-hsl/
+			DrawRect(&EngineState->base_layer, {testX*64,testY*64}, {64,64}, CreateDIBPixel({0.0f+shadeBumper, 0.0f+shadeBumper, 0.0f+shadeBumper, 1.0f}));
+			shadeBumper += (1.0f/(9*10));
+		}
+
+	}
+
+	// Keep the test bitmap.
 	DrawBitmap(&EngineState->base_layer, &EngineState->testbitmap, {80,80});
+
+
 
 	/**
 	 * NOTE:

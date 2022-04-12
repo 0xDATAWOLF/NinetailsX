@@ -21,4 +21,13 @@ absolute_i32(i32 Value)
 	return (Value >= 0 ? Value : Value*(i32)(-1));
 }
 
+inline r32
+clamp_r32(r32 Value, r32 min, r32 max)
+{
+	r32 _value = Value;
+	if (_value < min) _value = min;
+	if (_value > max) _value = max;
+	return _value;
+}
+
 #endif

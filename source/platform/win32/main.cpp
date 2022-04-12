@@ -97,12 +97,6 @@ RenderSoftwareBitmap(app_state* ApplicationState, void* BitmapData, i32 BitmapWi
 	i32 Status = StretchDIBits(ApplicationState->WindowDeviceContext, 0, 0, BitmapWidth, BitmapHeight, 0, 0,
 		BitmapWidth, BitmapHeight, BitmapData, &BitmapInfo, DIB_RGB_COLORS, SRCCOPY);
 
-	if (Status)
-	{
-		// do something
-		i32 HelloWorld = 0;
-	}
-
 }
 
 LRESULT CALLBACK

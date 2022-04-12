@@ -8,16 +8,18 @@
 
 typedef struct
 {
-	dibitmap* source;
-	v2i dims;
+	dibitmap source;
 } texture_t;
 
 inline texture_t
-CreateTextureFromBitmap(dibitmap* source)
+CreateTexture(dibitmap source)
 {
+
 	texture_t _tex;
-	_tex.dims = source->dims;
 	_tex.source = source;
+
+	return _tex;
+
 }
 
 #endif
